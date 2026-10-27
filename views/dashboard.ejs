@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intranet Corporativa | <%= companyName %></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .service-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .service-card.is-hidden {
+            display: none !important;
+        }
+        .area-card {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="dashboard-page min-h-screen flex flex-col text-slate-800 antialiased">
+
+    <!-- Barra Superior Corporativa -->
+    <header class="dashboard-header sticky top-0 z-30">
+        <a class="header-brand" href="/dashboard" aria-label="VITAFOODS, inicio">
+            <img src="/img/logo-vtf.png" alt="" class="header-logo">
+            <span>Intranet Corporativa</span>
+        </a>
+
+        <div class="header-actions">
+            <details class="header-popover">
+                <summary class="header-icon-button" aria-label="Notificaciones">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                    <span class="notification-count">0</span>
+                </summary>
+                <div class="popover-panel notification-panel">
+                    <strong>Notificaciones</strong>
+                    <p>No tienes notificaciones pendientes.</p>
+                </div>
+            </details>
+
+            <details class="header-popover account-popover">
+                <summary class="account-selector">
+                    <span class="account-avatar"><%= user.name.charAt(0) %></span>
+                    <span class="account-copy">
+                        <strong><%= user.name %></strong>
+                        <small><%= user.email %></small>
+                    </span>
+                    <% if (user.isAdmin) { %>
+                        <span class="role-badge">ADMIN</span>
+                    <% } else if (user.isTI) { %>
+                        <span class="role-badge">TI</span>
+                    <% } %>
+                    <span class="account-chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <div class="popover-panel account-panel">
+                    <span class="account-panel-label">Cuenta corporativa</span>
+                    <strong><%= companyName %></strong>
+                    <span><%= user.email %></span>
+                    <span class="account-role"><%= user.roleLabel %></span>
+                    <a href="/logout">Cerrar sesión</a>
+                </div>
+            </details>
+
+            <% if (user.isAdmin) { %>
+                <button type="button" onclick="openServiceModal()" class="header-primary-action">
+                    <span aria-hidden="true">+</span>
+                    <span>Nuevo Servicio</span>
+                </button>
+            <% } %>
+
+            <a href="/logout" class="header-logout">Salir</a>
+        </div>
+    </header>
+
+    <div class="flex flex-1">
+        
+        <!-- Menú Lateral -->
+        <aside class="dashboard-sidebar w-64 bg-white shadow-sm border-r border-slate-200 p-4 hidden md:flex flex-col justify-between">
+            <div class="space-y-6">
+                <div class="dashboard-brand">
+                    <img src="/img/logo-vtf.png" alt="<%= companyName %>" class="dashboard-brand-logo">
+                    <span class="dashboard-brand-name"><%= companyName %></span>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Áreas por Catálogo</p>
+                    <nav class="space-y-1" id="sidebar-nav">
+                        <!-- Ver Todos -->
+                        <button type="button" 
+                                onclick="selectAreaFilter('all')" 
+                                data-sidebar-area="all"
+                                class="sidebar-btn w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all text-red-600 bg-red-50 border border-red-200/60 shadow-xs">
+                            <span class="flex items-center space-x-2.5">
+                                <span>🏢</span>
+                                <span>Todas las Áreas</span>
+                            </span>
+                            <span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-md font-bold"><%= servicios.length %></span>
+                        </button>
+
+                        <!-- Botones por cada Área -->
+                        <% areas.forEach(area => { %>
+                            <% if (!area.isLocked) { %>
+                                <button type="button" 
+                                        onclick="selectAreaFilter('<%= area.id %>')" 
+                                        data-sidebar-area="<%= area.id %>"
+                                        class="sidebar-btn w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
+                                    <span class="flex items-center space-x-2.5">
+                                        <span><%= area.icono %></span>
+                                        <span><%= area.nombre %></span>
+                                    </span>
+                                    <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-semibold"><%= area.totalServicios %></span>
+                                </button>
+                            <% } else { %>
+                                <!-- Área Bloqueada para público general -->
+                                <div class="px-3.5 py-2.5 text-xs text-slate-400 flex items-center justify-between rounded-xl bg-slate-50 border border-dashed border-slate-200 cursor-not-allowed"
+                                     title="Requiere membresía en el grupo TI de Microsoft Entra ID">
+                                    <span class="flex items-center space-x-2">
+                                        <span>🔒</span>
+                                        <span><%= area.nombre %></span>
+                                    </span>
+                                    <span class="text-[9px] bg-slate-200 text-slate-600 font-mono px-1 rounded">Grupo TI</span>
+                                </div>
+                            <% } %>
+                        <% }) %>
+                    </nav>
+                </div>
+
+            </div>
+
+            <!-- Soporte -->
+            <div class="text-[11px] text-slate-400 px-3 pt-4 border-t border-slate-100">
+                Seguridad &middot; Microsoft Entra ID + Proxy
+            </div>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="dashboard-main flex-1 p-6 md:p-8 space-y-8 overflow-y-auto max-w-7xl mx-auto w-full">
+            
+            <!-- Banner de Bienvenida -->
+            <div class="dashboard-welcome rounded-2xl p-6 md:p-8 text-white shadow-md flex flex-col md:flex-row justify-between md:items-center gap-6">
+                <div class="space-y-1.5">
+                    <div class="inline-flex items-center space-x-2 bg-white/10 px-2.5 py-0.5 rounded-full text-xs text-red-100 font-medium border border-white/10">
+                        <span>Portal Corporativo &middot; Intranet Segura</span>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">¡Hola, <%= user.name %>!</h1>
+                    <p class="text-slate-300 text-xs md:text-sm max-w-xl">
+                        Haz clic en una de las tarjetas de área para ver exclusivamente sus servicios. La pantalla se mantendrá fija en tu posición.
+                    </p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-xl border border-white/20 self-start md:self-auto min-w-[220px]">
+                    <p class="text-[10px] text-slate-300 uppercase font-bold tracking-wider">Identidad Entra ID</p>
+                    <p class="font-semibold text-xs text-white truncate"><%= user.email %></p>
+                    <div class="mt-1 flex items-center space-x-1.5">
+                        <span class="text-[10px] bg-red-700/80 text-white px-2 py-0.5 rounded font-mono font-semibold">
+                            <%= user.roleLabel %>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- SECCIÓN: TARJETAS DE ÁREA (FILTRO DIRECTO SIN SCROLL)     -->
+            <!-- ======================================================== -->
+            <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Áreas de la Empresa</h2>
+                        <p class="text-xs text-slate-500">Haz clic en un área para desplegar en esta misma vista solo sus servicios correspondientes</p>
+                    </div>
+                    <!-- Botón para ver todas -->
+                    <button type="button" 
+                            id="btn-reset-filter"
+                            onclick="selectAreaFilter('all')" 
+                            class="hidden self-start sm:self-auto text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors items-center space-x-1.5">
+                        <span>✕</span>
+                        <span>Ver todas las áreas</span>
+                    </button>
+                </div>
+
+                <!-- Grid de Tarjetas de Área -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    
+                    <!-- Tarjeta: Todas las Áreas -->
+                    <button type="button"
+                            onclick="selectAreaFilter('all')"
+                            data-area-id="all"
+                            class="area-card text-left p-5 rounded-2xl border-2 transition-all cursor-pointer bg-white border-red-600 shadow-md ring-2 ring-red-600/10 flex flex-col justify-between space-y-3 group">
+                        <div class="flex justify-between items-start">
+                            <span class="text-3xl p-2 bg-slate-50 rounded-xl group-hover:scale-105 transition-transform">🏢</span>
+                            <span class="badge-count text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                <%= servicios.length %> serv.
+                            </span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors">Todas las Áreas</h3>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Catálogo general autorizado</p>
+                        </div>
+                        <div class="status-indicator text-[10px] font-bold text-red-600 flex items-center space-x-1 pt-1 border-t border-slate-100">
+                            <span>●</span>
+                            <span>Vista Completa</span>
+                        </div>
+                    </button>
+
+                    <!-- Tarjetas Dinámicas por Área -->
+                    <% areas.forEach(area => { %>
+                        <% if (!area.isLocked) { %>
+                            <button type="button"
+                                    onclick="selectAreaFilter('<%= area.id %>')"
+                                    data-area-id="<%= area.id %>"
+                                    class="area-card text-left p-5 rounded-2xl border-2 transition-all cursor-pointer bg-white border-slate-200/80 hover:border-slate-300 hover:shadow-sm flex flex-col justify-between space-y-3 group">
+                                <div class="flex justify-between items-start">
+                                    <span class="text-3xl p-2 bg-slate-50 rounded-xl group-hover:scale-105 transition-transform"><%= area.icono %></span>
+                                    <span class="badge-count text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                        <%= area.totalServicios %> serv.
+                                    </span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors"><%= area.nombre %></h3>
+                                    <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-2"><%= area.descripcion %></p>
+                                </div>
+                                <div class="status-indicator text-[10px] font-medium text-slate-400 flex items-center space-x-1 pt-1 border-t border-slate-100">
+                                    <span>Ver servicios &rarr;</span>
+                                </div>
+                            </button>
+                        <% } else { %>
+                            <!-- Tarjeta bloqueada para área de TI si es público general -->
+                            <div class="text-left p-5 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3 opacity-70 cursor-not-allowed">
+                                <div class="flex justify-between items-start">
+                                    <span class="text-3xl p-2 bg-slate-100 rounded-xl opacity-50">🔒</span>
+                                    <span class="text-[10px] font-mono bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                                        Grupo TI
+                                    </span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-600 text-sm"><%= area.nombre %></h3>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Acceso exclusivo para el grupo de seguridad de TI en Entra ID.</p>
+                                </div>
+                                <div class="text-[10px] text-amber-600 font-semibold pt-1 border-t border-slate-200">
+                                    <span>Requiere autorización TI</span>
+                                </div>
+                            </div>
+                        <% } %>
+                    <% }) %>
+
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- SECCIÓN: SERVICIOS POR ÁREA (FILTRADO IN-PLACE)           -->
+            <!-- ======================================================== -->
+            <div class="space-y-4 pt-2">
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🛠️</span>
+                            <h2 class="text-base font-bold text-slate-800" id="services-heading">
+                                Servicios Disponibles (<span id="services-count"><%= servicios.length %></span>)
+                            </h2>
+                        </div>
+                        <span id="active-filter-badge" class="hidden text-xs bg-red-100 text-red-700 font-semibold px-2.5 py-0.5 rounded-full">
+                            Área: <span id="active-filter-name" class="font-bold"></span>
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-3 w-full md:w-auto">
+                        <!-- Buscador -->
+                        <div class="relative flex-1 md:w-64">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
+                                🔍
+                            </span>
+                            <input type="text" 
+                                   id="service-search-input" 
+                                   onkeyup="handleSearchInput()" 
+                                   placeholder="Buscar servicio..." 
+                                   class="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:bg-white transition-all">
+                        </div>
+
+                        <!-- Botón Admin para abrir modal -->
+                        <% if (user.isAdmin) { %>
+                            <button type="button" 
+                                    onclick="openServiceModal()" 
+                                    class="text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl transition-colors whitespace-nowrap shadow-xs">
+                                + Agregar
+                            </button>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Grilla de Servicios -->
+                <div id="services-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <% servicios.forEach(servicio => { %>
+                        <div class="service-card bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 flex flex-col justify-between space-y-4"
+                             data-service-id="<%= servicio.id %>"
+                             data-area-id="<%= servicio.areaId %>"
+                             data-area-name="<%= servicio.areaNombre %>"
+                             data-title="<%= servicio.nombre.toLowerCase() %>"
+                             data-desc="<%= servicio.descripcion.toLowerCase() %>">
+                            
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-start gap-2">
+                                    <div class="flex items-center space-x-2.5">
+                                        <span class="text-2xl p-2 bg-slate-50 rounded-xl"><%= servicio.icono %></span>
+                                        <div>
+                                            <h3 class="font-bold text-sm text-slate-800 leading-tight"><%= servicio.nombre %></h3>
+                                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider"><%= servicio.areaNombre %></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex flex-col items-end gap-1">
+                                        <span class="inline-flex items-center text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                            <%= servicio.accessType === 'external' ? '↗ Externo' : servicio.accessType === 'direct' ? '↗ Acceso directo' : '● Proxy' %>
+                                        </span>
+                                        <% if (servicio.requiredGroup === 'ti') { %>
+                                            <span class="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded font-mono font-bold">
+                                                Grupo TI
+                                            </span>
+                                        <% } %>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-500 leading-relaxed"><%= servicio.descripcion %></p>
+                            </div>
+
+                            <!-- Fila de Acciones y Destino de Red -->
+                            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                <div class="text-[10px] font-mono text-slate-400 truncate max-w-[150px]">
+                                    <% if (servicio.accessType === 'external') { %>
+                                        Sitio externo
+                                    <% } else if (servicio.accessType === 'direct') { %>
+                                        IP directa: <span class="text-slate-600 font-semibold"><%= servicio.internalIp %></span>
+                                    <% } else { %>
+                                        IP: <span class="text-slate-600 font-semibold"><%= servicio.internalIp %></span>
+                                    <% } %>
+                                </div>
+
+                                <div class="flex items-center space-x-2">
+                                    <% if (user.isAdmin) { %>
+                                        <button type="button"
+                                                onclick="editService('<%= servicio.id %>')"
+                                                class="text-slate-400 hover:text-blue-600 p-1 rounded transition-colors text-xs"
+                                                title="Editar servicio">
+                                            ✏️
+                                        </button>
+                                        <button type="button" 
+                                                onclick="deleteService('<%= servicio.id %>', '<%= servicio.nombre %>')" 
+                                                class="text-slate-400 hover:text-red-600 p-1 rounded transition-colors text-xs" 
+                                                title="Eliminar servicio">
+                                            🗑️
+                                        </button>
+                                    <% } %>
+
+                                    <a href="<%= servicio.accessType === 'external' || servicio.accessType === 'direct' ? '/launch/' + servicio.id : servicio.url %>"
+                                       <% if (servicio.accessType === 'external' || servicio.accessType === 'direct') { %>target="_blank" rel="noopener noreferrer"<% } %>
+                                       class="inline-flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2 px-3.5 rounded-xl transition-all shadow-xs group">
+                                        <span><%= servicio.accessType === 'external' ? 'Abrir sitio' : servicio.accessType === 'direct' ? 'Abrir firewall' : 'Acceder' %></span>
+                                        <span class="ml-1 group-hover:translate-x-0.5 transition-transform"><%= servicio.accessType === 'external' || servicio.accessType === 'direct' ? '↗' : '→' %></span>
+                                    </a>
+                                </div>
+                            </div>
+
+                        </div>
+                    <% }) %>
+                </div>
+
+                <!-- Mensaje cuando no hay servicios en esa área -->
+                <div id="no-services-message" class="hidden bg-white rounded-2xl p-10 text-center border border-slate-200">
+                    <span class="text-4xl">🔍</span>
+                    <h3 class="text-sm font-bold text-slate-700 mt-2">No se encontraron servicios</h3>
+                    <p class="text-xs text-slate-500 mt-1">No hay servicios asociados a los criterios actuales.</p>
+                    <button type="button" 
+                            onclick="resetFilters()" 
+                            class="mt-4 inline-flex items-center text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
+                        Ver todas las áreas
+                    </button>
+                </div>
+
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL DE ADMINISTRACIÓN: CREAR Y EDITAR SERVICIOS         -->
+    <!-- ======================================================== -->
+    <% if (user.isAdmin) { %>
+        <div id="service-modal" class="service-modal hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div class="bg-slate-900 p-5 text-white flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl">🛠️</span>
+                        <div>
+                            <h3 id="service-modal-title" class="font-bold text-base">Registrar Nuevo Servicio</h3>
+                            <p id="service-modal-description" class="text-[11px] text-slate-400">Control de Administrador &middot; Catálogo Corporativo</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeServiceModal()" class="text-slate-400 hover:text-white text-lg font-bold">
+                        ✕
+                    </button>
+                </div>
+
+                <form id="create-service-form" onsubmit="handleSaveService(event)" class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del Servicio</label>
+                        <input type="text" id="modal-nombre" required placeholder="ej. Sistema ERP SAP" 
+                               class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+
+                    <div>
+                        <label for="modal-access-type" class="block text-xs font-bold text-slate-700 mb-1">Tipo de servicio</label>
+                        <select id="modal-access-type" required onchange="toggleServiceAddressFields()" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 bg-white">
+                            <option value="internal">Interno — IP o host de la red corporativa</option>
+                            <option value="direct">IP interna directa — abrir en pestaña nueva</option>
+                            <option value="external">Externo — sitio web con URL propia</option>
+                        </select>
+                    </div>
+
+                    <div id="internal-address-fields">
+                        <label for="modal-ip" class="block text-xs font-bold text-slate-700 mb-1">Dirección interna (IP/host y puerto)</label>
+                        <input type="text" id="modal-ip" required placeholder="ej. 192.0.2.10:8080"
+                               class="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600">
+                        <p id="internal-address-help" class="mt-1 text-[11px] text-slate-500">El servidor de la intranet debe poder alcanzar esta dirección. Se abrirá a través del gateway.</p>
+                    </div>
+
+                    <div id="external-address-fields" class="hidden">
+                        <label for="modal-external-url" class="block text-xs font-bold text-slate-700 mb-1">URL externa</label>
+                        <input type="url" id="modal-external-url" placeholder="https://servicio.ejemplo.com"
+                               class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600">
+                        <p class="mt-1 text-[11px] text-slate-500">Se abrirá directamente en otra pestaña. La autenticación y los permisos dependen del sitio externo.</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Área Destino</label>
+                            <select id="modal-area" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 bg-white">
+                                <option value="administracion">Administración</option>
+                                <option value="logistica">Logística</option>
+                                <option value="ti">Tecnologías de la Información (TI)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Ícono (Emoji)</label>
+                            <input type="text" id="modal-icono" required value="⚡" placeholder="ej. 📊, 📦, 💻, 🏭" 
+                                   class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 text-center">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Descripción Breve</label>
+                        <textarea id="modal-desc" required rows="2" placeholder="ej. Facturación de compras y órdenes de pago..." 
+                                  class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Permiso en Entra ID</label>
+                            <select id="modal-group" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 bg-white">
+                                <option value="general">Público General (Todos)</option>
+                                <option value="ti">Solo Grupo TI</option>
+                                <option value="admin">Solo Administradores</option>
+                            </select>
+                        </div>
+                        <div>
+                            <p class="text-[11px] leading-relaxed text-slate-500 pt-5">Los servicios externos usan los permisos propios del proveedor, además de su visibilidad en el catálogo.</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex justify-end space-x-2">
+                        <button type="button" onclick="closeServiceModal()" class="px-4 py-2 text-xs text-slate-600 hover:text-slate-900 font-semibold">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="btn-submit-service" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-colors">
+                            Guardar Servicio
+                        </button>
+                    </div>
+                </form>
+                <div id="service-form-error" class="hidden mx-6 mb-5 text-xs text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg" role="alert"></div>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- SCRIPT DE FILTRADO Y ADMINISTRACIÓN -->
+    <script>
+        let currentAreaFilter = 'all';
+        let currentSearchQuery = '';
+
+        /**
+         * Filtrado in-place sin correr la pantalla ni desplazar el scroll
+         */
+        function selectAreaFilter(areaId) {
+            currentAreaFilter = areaId;
+
+            // Actualizar Tarjetas de Área
+            const areaCards = document.querySelectorAll('.area-card');
+            areaCards.forEach(card => {
+                const id = card.getAttribute('data-area-id');
+                const badge = card.querySelector('.badge-count');
+                const indicator = card.querySelector('.status-indicator');
+
+                if (id === areaId) {
+                    card.classList.remove('border-slate-200/80', 'hover:border-slate-300', 'shadow-xs');
+                    card.classList.add('border-red-600', 'shadow-md', 'ring-2', 'ring-red-600/10', 'bg-red-50/20');
+                    if (badge) {
+                        badge.classList.remove('bg-slate-100', 'text-slate-600');
+                        badge.classList.add('bg-red-100', 'text-red-700');
+                    }
+                    if (indicator) {
+                        indicator.classList.remove('text-slate-400');
+                        indicator.classList.add('text-red-600', 'font-bold');
+                        indicator.innerHTML = '<span>●</span><span>Área Activa</span>';
+                    }
+                } else {
+                    card.classList.remove('border-red-600', 'shadow-md', 'ring-2', 'ring-red-600/10', 'bg-red-50/20');
+                    card.classList.add('border-slate-200/80', 'hover:border-slate-300');
+                    if (badge) {
+                        badge.classList.remove('bg-red-100', 'text-red-700');
+                        badge.classList.add('bg-slate-100', 'text-slate-600');
+                    }
+                    if (indicator) {
+                        indicator.classList.remove('text-red-600', 'font-bold');
+                        indicator.classList.add('text-slate-400');
+                        indicator.innerHTML = id === 'all' ? '<span>●</span><span>Vista Completa</span>' : '<span>Ver servicios &rarr;</span>';
+                    }
+                }
+            });
+
+            // Sincronizar Menú Lateral
+            const sidebarButtons = document.querySelectorAll('.sidebar-btn');
+            sidebarButtons.forEach(btn => {
+                const btnArea = btn.getAttribute('data-sidebar-area');
+                if (btnArea === areaId) {
+                    btn.classList.remove('text-slate-600', 'hover:bg-slate-50', 'hover:text-slate-900');
+                    btn.classList.add('text-red-600', 'bg-red-50', 'border', 'border-red-200/60', 'font-semibold', 'shadow-xs');
+                } else {
+                    btn.classList.remove('text-red-600', 'bg-red-50', 'border', 'border-red-200/60', 'font-semibold', 'shadow-xs');
+                    btn.classList.add('text-slate-600', 'hover:bg-slate-50', 'hover:text-slate-900');
+                }
+            });
+
+            // Actualizar indicadores
+            const badge = document.getElementById('active-filter-badge');
+            const badgeName = document.getElementById('active-filter-name');
+            const resetBtn = document.getElementById('btn-reset-filter');
+
+            if (areaId === 'all') {
+                badge.classList.add('hidden');
+                resetBtn.classList.add('hidden');
+            } else {
+                badge.classList.remove('hidden');
+                resetBtn.classList.remove('hidden');
+                resetBtn.classList.add('inline-flex');
+
+                const activeCardTitle = document.querySelector(`.area-card[data-area-id="${areaId}"] h3`);
+                if (activeCardTitle) {
+                    badgeName.textContent = activeCardTitle.textContent;
+                }
+            }
+
+            applyFilters();
+        }
+
+        function handleSearchInput() {
+            currentSearchQuery = document.getElementById('service-search-input').value.trim().toLowerCase();
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const serviceCards = document.querySelectorAll('.service-card');
+            let visibleCount = 0;
+
+            serviceCards.forEach(card => {
+                const cardArea = card.getAttribute('data-area-id');
+                const cardTitle = card.getAttribute('data-title') || '';
+                const cardDesc = card.getAttribute('data-desc') || '';
+
+                const matchesArea = (currentAreaFilter === 'all' || cardArea === currentAreaFilter);
+                const matchesQuery = (currentSearchQuery === '' || cardTitle.includes(currentSearchQuery) || cardDesc.includes(currentSearchQuery));
+
+                if (matchesArea && matchesQuery) {
+                    card.classList.remove('is-hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('is-hidden');
+                }
+            });
+
+            document.getElementById('services-count').textContent = visibleCount;
+            const noServicesMsg = document.getElementById('no-services-message');
+            if (visibleCount === 0) {
+                noServicesMsg.classList.remove('hidden');
+            } else {
+                noServicesMsg.classList.add('hidden');
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('service-search-input').value = '';
+            currentSearchQuery = '';
+            selectAreaFilter('all');
+        }
+
+        // ==========================================
+        // FUNCIONES EXCLUSIVAS DEL ADMINISTRADOR
+        // ==========================================
+        <% if (user.isAdmin) { %>
+            let editingServiceId = null;
+
+            function openServiceModal() {
+                editingServiceId = null;
+                document.getElementById('create-service-form').reset();
+                document.getElementById('service-modal-title').textContent = 'Registrar Nuevo Servicio';
+                document.getElementById('service-modal-description').textContent = 'Control de Administrador · Catálogo Corporativo';
+                document.getElementById('btn-submit-service').textContent = 'Guardar Servicio';
+                document.getElementById('service-form-error').classList.add('hidden');
+                document.getElementById('service-modal').classList.remove('hidden');
+                toggleServiceAddressFields();
+            }
+
+            function closeServiceModal() {
+                document.getElementById('service-modal').classList.add('hidden');
+                document.getElementById('create-service-form').reset();
+                editingServiceId = null;
+                document.getElementById('service-form-error').classList.add('hidden');
+                document.getElementById('service-modal-title').textContent = 'Registrar Nuevo Servicio';
+                document.getElementById('service-modal-description').textContent = 'Control de Administrador · Catálogo Corporativo';
+                document.getElementById('btn-submit-service').textContent = 'Guardar Servicio';
+                toggleServiceAddressFields();
+            }
+
+            async function editService(serviceId) {
+                const errorBox = document.getElementById('service-form-error');
+                errorBox.textContent = '';
+                errorBox.classList.add('hidden');
+
+                try {
+                    const response = await fetch(`/api/services/${encodeURIComponent(serviceId)}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'No fue posible cargar el servicio.');
+                    }
+
+                    const service = data.service;
+                    editingServiceId = service.id;
+                    document.getElementById('create-service-form').reset();
+                    document.getElementById('modal-nombre').value = service.nombre || '';
+                    document.getElementById('modal-area').value = service.areaId || 'administracion';
+                    document.getElementById('modal-icono').value = service.icono || '⚡';
+                    document.getElementById('modal-desc').value = service.descripcion || '';
+                    document.getElementById('modal-access-type').value = service.accessType || 'internal';
+                    document.getElementById('modal-ip').value = service.accessType === 'direct'
+                        ? service.targetUrl || ''
+                        : service.internalIp || '';
+                    document.getElementById('modal-external-url').value = service.externalUrl || '';
+                    document.getElementById('modal-group').value = service.requiredGroup || 'general';
+                    document.getElementById('service-modal-title').textContent = 'Editar Servicio';
+                    document.getElementById('service-modal-description').textContent = `Editando ${service.nombre}`;
+                    document.getElementById('btn-submit-service').textContent = 'Guardar Cambios';
+                    document.getElementById('service-modal').classList.remove('hidden');
+                    toggleServiceAddressFields();
+                } catch (error) {
+                    errorBox.textContent = error.message || 'No fue posible cargar el servicio.';
+                    errorBox.classList.remove('hidden');
+                    document.getElementById('service-modal').classList.remove('hidden');
+                }
+            }
+
+            function toggleServiceAddressFields() {
+                const accessType = document.getElementById('modal-access-type').value;
+                const isExternal = accessType === 'external';
+                const isDirect = accessType === 'direct';
+                const internalFields = document.getElementById('internal-address-fields');
+                const externalFields = document.getElementById('external-address-fields');
+                const internalAddress = document.getElementById('modal-ip');
+                const externalUrl = document.getElementById('modal-external-url');
+                const internalAddressLabel = document.querySelector('label[for="modal-ip"]');
+                const internalAddressHelp = document.getElementById('internal-address-help');
+
+                internalFields.classList.toggle('hidden', isExternal);
+                externalFields.classList.toggle('hidden', !isExternal);
+                internalAddress.required = !isExternal;
+                externalUrl.required = isExternal;
+                internalAddressLabel.textContent = isDirect ? 'URL de la interfaz (protocolo, IP y puerto)' : 'Dirección interna (IP/host y puerto)';
+                internalAddress.placeholder = isDirect ? 'https://192.0.2.10:11443' : 'ej. 192.0.2.10:8080';
+                internalAddressHelp.textContent = isDirect
+                    ? 'Se abrirá directamente en otra pestaña. El navegador debe tener acceso a la red y confiar en el certificado HTTPS del equipo.'
+                    : 'El servidor de la intranet debe poder alcanzar esta dirección. Se abrirá a través del gateway.';
+            }
+
+            async function handleSaveService(event) {
+                event.preventDefault();
+                const btn = document.getElementById('btn-submit-service');
+                const errorBox = document.getElementById('service-form-error');
+                errorBox.textContent = '';
+                errorBox.classList.add('hidden');
+                btn.disabled = true;
+                btn.textContent = 'Guardando...';
+
+                const payload = {
+                    nombre: document.getElementById('modal-nombre').value,
+                    areaId: document.getElementById('modal-area').value,
+                    icono: document.getElementById('modal-icono').value,
+                    descripcion: document.getElementById('modal-desc').value,
+                    accessType: document.getElementById('modal-access-type').value,
+                    internalIp: document.getElementById('modal-ip').value,
+                    externalUrl: document.getElementById('modal-external-url').value,
+                    requiredGroup: document.getElementById('modal-group').value
+                };
+
+                try {
+                    const endpoint = editingServiceId
+                        ? `/api/services/${encodeURIComponent(editingServiceId)}`
+                        : '/api/services';
+                    const res = await fetch(endpoint, {
+                        method: editingServiceId ? 'PUT' : 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await res.json();
+                    if (res.ok) {
+                        window.location.reload();
+                    } else {
+                        errorBox.textContent = data.error || (editingServiceId
+                            ? 'No fue posible guardar los cambios del servicio.'
+                            : 'No fue posible registrar el servicio.');
+                        errorBox.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.textContent = 'Guardar Servicio';
+                    }
+                } catch (err) {
+                    errorBox.textContent = 'No fue posible conectar con el servidor. Intenta nuevamente.';
+                    errorBox.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'Guardar Servicio';
+                }
+            }
+
+            async function deleteService(serviceId, serviceName) {
+                if (!confirm(`¿Está seguro de eliminar el servicio "${serviceName}" del catálogo corporativo?`)) {
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/services/${serviceId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (res.ok) {
+                        alert('✅ Servicio eliminado correctamente.');
+                        window.location.reload();
+                    } else {
+                        const data = await res.json();
+                        alert('❌ Error: ' + (data.error || 'No se pudo eliminar el servicio.'));
+                    }
+                } catch (err) {
+                    alert('❌ Error al conectar con el servidor.');
+                }
+            }
+        <% } %>
+    </script>
+
+</body>
+</html>

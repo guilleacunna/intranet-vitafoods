@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= service.nombre %> | Gateway de Seguridad Intranet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="brand-theme bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800">
+
+    <!-- Barra Superior -->
+    <header class="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <img src="/img/logo-vtf.png" alt="<%= companyName %>" class="gateway-brand-logo">
+            <span class="text-lg font-bold text-slate-800">Proxy Gateway &middot; Seguridad de Red</span>
+        </div>
+        <div>
+            <a href="/dashboard" class="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-red-600 transition-colors">
+                &larr; Volver al Dashboard
+            </a>
+        </div>
+    </header>
+
+    <!-- Contenido Central -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-6 md:p-10 flex flex-col justify-center">
+
+        <% if (status === 'forbidden') { %>
+            <!-- Acceso Denegado por Políticas RBAC -->
+            <div class="bg-white rounded-2xl shadow-xl border border-red-200 overflow-hidden">
+                <div class="bg-red-600 p-6 text-white flex items-center space-x-4">
+                    <div class="text-4xl">🛑</div>
+                    <div>
+                        <h1 class="text-2xl font-bold">Acceso Denegado por Políticas de Seguridad</h1>
+                        <p class="text-red-100 text-sm mt-1">Control de Acceso Basado en Roles (RBAC) de la Intranet</p>
+                    </div>
+                </div>
+                <div class="p-8 space-y-6">
+                    <div class="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-lg">
+                        <p class="text-red-900 font-medium"><%= message %></p>
+                    </div>
+                    <div class="text-sm text-slate-600 space-y-2">
+                        <p><strong>Recurso solicitado:</strong> <%= service.nombre %> (<%= service.areaNombre || service.id %>)</p>
+                        <p><strong>Su rol actual:</strong> <span class="bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-mono text-xs"><%= user.roleLabel || user.role %></span></p>
+                        <p><strong>Grupo Entra ID requerido:</strong> 
+                            <span class="text-blue-700 bg-blue-50 font-mono text-xs px-2 py-0.5 rounded font-bold">
+                                <%= service.requiredGroup === 'ti' ? 'VTF-Grupo-TI-Soporte' : (service.requiredGroup === 'admin' ? 'VTF-Admins-Intranet' : 'VTF-Colaboradores-General') %>
+                            </span>
+                        </p>
+                        <p><strong>Sus grupos en Entra ID:</strong> <span class="text-slate-800 font-mono text-xs"><%= (user.groups || []).join(', ') %></span></p>
+                    </div>
+                    <div class="pt-4 border-t border-slate-200 flex justify-end">
+                        <a href="/dashboard" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                            Volver al Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        <% } else if (status === 'not_found') { %>
+            <!-- Recurso No Encontrado / Previene SSRF -->
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <div class="bg-amber-600 p-6 text-white flex items-center space-x-4">
+                    <div class="text-4xl">⚠️</div>
+                    <div>
+                        <h1 class="text-2xl font-bold">Recurso no identificado</h1>
+                        <p class="text-amber-100 text-sm mt-1">El catálogo seguro de la intranet no contiene este identificador</p>
+                    </div>
+                </div>
+                <div class="p-8 space-y-6">
+                    <p class="text-slate-600"><%= message %></p>
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs font-mono text-slate-700">
+                        SSRF Protection: Petición descartada por no coincidir con ningún endpoint interno autorizado en la lista blanca corporativa.
+                    </div>
+                    <div class="pt-4 border-t border-slate-200 flex justify-end">
+                        <a href="/dashboard" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                            Volver al Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        <% } else { %>
+            <!-- Simulación Segura y Demostración de Arquitectura Proxy Inverso -->
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <!-- Cabecera del Gateway -->
+                <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-700">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl"><%= service.icono || '🛡️' %></span>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h1 class="text-xl font-bold"><%= service.nombre %></h1>
+                                <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                                    Proxy Activo
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-300 mt-0.5"><%= service.descripcion %></p>
+                        </div>
+                    </div>
+                    <div class="text-right flex md:flex-col items-center md:items-end justify-between text-xs text-slate-300">
+                        <span>Área: <strong class="text-white"><%= service.areaNombre %></strong></span>
+                        <span class="text-emerald-400 font-mono">Túnel Seguro Verificado</span>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8 space-y-6">
+                    
+                    <!-- Diagrama de Flujo del Proxy Seguro -->
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Arquitectura de Tráfico Seguro (Aislamiento de Red)</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center items-center">
+                            
+                            <!-- Paso 1: Cliente / Navegador -->
+                            <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                <div class="text-xs text-slate-400 font-semibold uppercase">1. Colaborador</div>
+                                <div class="font-bold text-slate-800 text-sm mt-1 truncate"><%= user.name %></div>
+                                <div class="text-[11px] text-slate-500 font-mono mt-0.5 truncate"><%= user.email %></div>
+                                <div class="mt-2 inline-block bg-blue-50 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded">
+                                    Rol: <%= user.roleLabel || user.role %>
+                                </div>
+                            </div>
+
+                            <!-- Paso 2: Proxy Inverso Intranet -->
+                            <div class="bg-red-50 p-4 rounded-lg border-2 border-red-500/40 shadow-sm relative">
+                                <div class="text-xs text-red-600 font-bold uppercase flex items-center justify-center space-x-1">
+                                    <span>🔒 Gateway Proxy</span>
+                                </div>
+                                <div class="font-bold text-slate-800 text-sm mt-1">Filtro &amp; Autenticación</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">Valida sesión, rol y RBAC</div>
+                                <div class="mt-2 inline-block bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                    IP Interna Protegida
+                                </div>
+                            </div>
+
+                            <!-- Paso 3: Servidor Interno del Área -->
+                            <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                <div class="text-xs text-slate-400 font-semibold uppercase">3. Servidor de Área (LAN)</div>
+                                <div class="font-bold text-slate-800 text-sm mt-1"><%= service.nombre %></div>
+                                <div class="text-[11px] text-slate-500 font-mono mt-0.5"><%= service.internalIp %></div>
+                                <div class="mt-2 inline-block bg-slate-100 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded">
+                                    Subred Privada / DMZ
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Métricas de Auditoría e Inyección de Headers -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        <!-- Encabezados inyectados -->
+                        <div class="bg-slate-900 rounded-xl p-5 text-slate-200">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                                <span>Encabezados Inyectados al Servicio</span>
+                                <span class="text-[10px] bg-slate-800 text-emerald-400 px-2 py-0.5 rounded font-mono">TLS / SSL</span>
+                            </h3>
+                            <pre class="font-mono text-xs text-emerald-400 bg-slate-950 p-3 rounded-lg overflow-x-auto space-y-1">
+X-Forwarded-User: <%= user.email %>
+X-User-Role: <%= user.role %>
+X-Entra-Groups: <%= (user.groups || []).join(';') %>
+X-Intranet-Gateway: VTF-Secure-Reverse-Proxy
+X-Internal-Destination: <%= service.internalIp %>
+X-Auth-Provider: MICROSOFT_ENTRA_ID</pre>
+                            <p class="text-[11px] text-slate-400 mt-2">
+                                El proxy transfiere la identidad del colaborador directamente al servicio sin requerir reingresar contraseñas.
+                            </p>
+                        </div>
+
+                        <!-- Políticas de Seguridad Cumplidas -->
+                        <div class="bg-white rounded-xl p-5 border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                                    Controles de Seguridad Activos
+                                </h3>
+                                <ul class="space-y-2 text-xs text-slate-600">
+                                    <li class="flex items-start space-x-2">
+                                        <span class="text-emerald-600 font-bold">&check;</span>
+                                        <span><strong>Ocultamiento de IPs:</strong> La IP real del servicio interno (<%= service.internalIp %>) nunca es expuesta en el navegador del usuario.</span>
+                                    </li>
+                                    <li class="flex items-start space-x-2">
+                                        <span class="text-emerald-600 font-bold">&check;</span>
+                                        <span><strong>Protección contra SSRF:</strong> Solo se permite el enrutamiento a destinos previamente autorizados en la lista blanca corporativa.</span>
+                                    </li>
+                                    <li class="flex items-start space-x-2">
+                                        <span class="text-emerald-600 font-bold">&check;</span>
+                                        <span><strong>Políticas de Acceso RBAC:</strong> Validación en tiempo real del rol corporativo del usuario antes de autorizar el túnel.</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                                <span>Modo Operativo: <strong>MVP Proxy Gateway</strong></span>
+                                <span class="text-emerald-600 font-semibold">Listo para Producción</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <span class="text-xs text-slate-500">
+                            Para vincular una IP interna real en producción, configure <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">PROXY_TARGET_<%= service.id.toUpperCase() %></code> en el archivo <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">.env</code>.
+                        </span>
+                        <div class="flex items-center space-x-3 w-full sm:w-auto">
+                            <a href="/dashboard" class="w-full sm:w-auto text-center bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm">
+                                Volver al Dashboard
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        <% } %>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-xs text-slate-400 border-t border-slate-200 bg-white">
+        <%= companyName %> &middot; Sistema de Intranet y Proxy Corporativo
+    </footer>
+
+</body>
+</html>

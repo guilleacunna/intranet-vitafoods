@@ -1,0 +1,20 @@
+# Environment configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Local data and generated files
+data/*.json
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Local editor and operating-system files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Security findings are kept out of the public repository
+SECURITY_REPORT.md
+SECURITY-REVIEW.md

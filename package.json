@@ -1,0 +1,25 @@
+{
+  "name": "intranet-empresa-mvp",
+  "version": "1.0.0",
+  "description": "MVP de Intranet corporativa para la empresa",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^7.1.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.9",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.1",
+    "express-session": "^1.18.0",
+    "helmet": "^8.3.0",
+    "http-proxy-middleware": "^4.2.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
