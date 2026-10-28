@@ -35,11 +35,13 @@
             <details class="header-popover">
                 <summary class="header-icon-button" aria-label="Notificaciones">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
-                    <span class="notification-count">0</span>
+                    <span class="notification-count" id="notification-count" data-empty="true">0</span>
                 </summary>
                 <div class="popover-panel notification-panel">
                     <strong>Notificaciones</strong>
-                    <p>No tienes notificaciones pendientes.</p>
+                    <p class="notification-status" id="notification-status" aria-live="polite">Revisando correos de esta sesión…</p>
+                    <div class="notification-list" id="notification-list"></div>
+                    <p class="notification-footnote">Solo correos recibidos desde que iniciaste sesión y dirigidos a ti en “Para”. Los correos en CC no se muestran.</p>
                 </div>
             </details>
 
@@ -95,7 +97,7 @@
                                 data-sidebar-area="all"
                                 class="sidebar-btn w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all text-red-600 bg-red-50 border border-red-200/60 shadow-xs">
                             <span class="flex items-center space-x-2.5">
-                                <span>🏢</span>
+                                <span class="sidebar-area-icon" aria-hidden="true">🏢</span>
                                 <span>Todas las Áreas</span>
                             </span>
                             <span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-md font-bold"><%= servicios.length %></span>
@@ -109,7 +111,7 @@
                                         data-sidebar-area="<%= area.id %>"
                                         class="sidebar-btn w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
                                     <span class="flex items-center space-x-2.5">
-                                        <span><%= area.icono %></span>
+                                        <span class="sidebar-area-icon" aria-hidden="true"><%= area.icono %></span>
                                         <span><%= area.nombre %></span>
                                     </span>
                                     <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-semibold"><%= area.totalServicios %></span>
@@ -119,11 +121,12 @@
                                 <div class="px-3.5 py-2.5 text-xs text-slate-400 flex items-center justify-between rounded-xl bg-slate-50 border border-dashed border-slate-200 cursor-not-allowed"
                                      title="Requiere membresía en el grupo TI de Microsoft Entra ID">
                                     <span class="flex items-center space-x-2">
-                                        <span>🔒</span>
+                                        <span class="sidebar-area-icon" aria-hidden="true">🔒</span>
                                         <span><%= area.nombre %></span>
                                     </span>
                                     <span class="text-[9px] bg-slate-200 text-slate-600 font-mono px-1 rounded">Grupo TI</span>
                                 </div>
+
                             <% } %>
                         <% }) %>
                     </nav>
@@ -151,14 +154,20 @@
                         Haz clic en una de las tarjetas de área para ver exclusivamente sus servicios. La pantalla se mantendrá fija en tu posición.
                     </p>
                 </div>
-                <div class="bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-xl border border-white/20 self-start md:self-auto min-w-[220px]">
-                    <p class="text-[10px] text-slate-300 uppercase font-bold tracking-wider">Identidad Entra ID</p>
-                    <p class="font-semibold text-xs text-white truncate"><%= user.email %></p>
-                    <div class="mt-1 flex items-center space-x-1.5">
-                        <span class="text-[10px] bg-red-700/80 text-white px-2 py-0.5 rounded font-mono font-semibold">
-                            <%= user.roleLabel %>
-                        </span>
+                <div class="welcome-actions">
+                    <div class="welcome-action-card bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-xl border border-white/20">
+                        <p class="text-[10px] text-slate-300 uppercase font-bold tracking-wider">Identidad Entra ID</p>
+                        <p class="font-semibold text-xs text-white truncate"><%= user.email %></p>
+                        <div class="mt-1 flex items-center space-x-1.5">
+                            <span class="text-[10px] bg-red-700/80 text-white px-2 py-0.5 rounded font-mono font-semibold">
+                                <%= user.roleLabel %>
+                            </span>
+                        </div>
                     </div>
+                    <a class="ticket-service-link" href="https://apps.powerapps.com/play/e/default-e388196c-6d02-425a-8142-74efea01cd30/a/64a66eef-ea76-4b21-9add-bb30d6420c6c?tenantId=e388196c-6d02-425a-8142-74efea01cd30&amp;hint=c050362b-697f-4cb4-a32e-67e354778938&amp;sourcetime=1778860266142" target="_blank" rel="noopener noreferrer">
+                        <img src="/img/ticketera-vitafoods.ico" alt="" class="ticket-service-logo">
+                        <span>Ticketera TI</span>
+                    </a>
                 </div>
             </div>
 
@@ -190,7 +199,7 @@
                             data-area-id="all"
                             class="area-card text-left p-5 rounded-2xl border-2 transition-all cursor-pointer bg-white border-red-600 shadow-md ring-2 ring-red-600/10 flex flex-col justify-between space-y-3 group">
                         <div class="flex justify-between items-start">
-                            <span class="text-3xl p-2 bg-slate-50 rounded-xl group-hover:scale-105 transition-transform">🏢</span>
+                            <span class="area-card-icon bg-slate-50 rounded-xl group-hover:scale-105 transition-transform" aria-hidden="true">🏢</span>
                             <span class="badge-count text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
                                 <%= servicios.length %> serv.
                             </span>
@@ -213,7 +222,7 @@
                                     data-area-id="<%= area.id %>"
                                     class="area-card text-left p-5 rounded-2xl border-2 transition-all cursor-pointer bg-white border-slate-200/80 hover:border-slate-300 hover:shadow-sm flex flex-col justify-between space-y-3 group">
                                 <div class="flex justify-between items-start">
-                                    <span class="text-3xl p-2 bg-slate-50 rounded-xl group-hover:scale-105 transition-transform"><%= area.icono %></span>
+                                    <span class="area-card-icon bg-slate-50 rounded-xl group-hover:scale-105 transition-transform" aria-hidden="true"><%= area.icono %></span>
                                     <span class="badge-count text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                                         <%= area.totalServicios %> serv.
                                     </span>
@@ -230,7 +239,7 @@
                             <!-- Tarjeta bloqueada para área de TI si es público general -->
                             <div class="text-left p-5 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3 opacity-70 cursor-not-allowed">
                                 <div class="flex justify-between items-start">
-                                    <span class="text-3xl p-2 bg-slate-100 rounded-xl opacity-50">🔒</span>
+                                    <span class="area-card-icon bg-slate-100 rounded-xl opacity-50" aria-hidden="true">🔒</span>
                                     <span class="text-[10px] font-mono bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
                                         Grupo TI
                                     </span>
@@ -435,7 +444,7 @@
                         <p class="mt-1 text-[11px] text-slate-500">Se abrirá directamente en otra pestaña. La autenticación y los permisos dependen del sitio externo.</p>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-3 items-end">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Área Destino</label>
                             <select id="modal-area" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 bg-white">
@@ -445,9 +454,15 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Ícono (Emoji)</label>
-                            <input type="text" id="modal-icono" required value="⚡" placeholder="ej. 📊, 📦, 💻, 🏭" 
-                                   class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 text-center">
+                            <label for="modal-icono" class="block text-xs font-bold text-slate-700 mb-1">Logo del servicio</label>
+                            <div class="flex items-center gap-2">
+                                <span id="service-logo-preview" class="service-logo-preview" aria-hidden="true">⚡</span>
+                                <button type="button" onclick="openLogoPicker()" class="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white hover:border-red-400 font-semibold text-slate-700">
+                                    Elegir logo
+                                </button>
+                            </div>
+                            <input type="text" id="modal-icono" required value="⚡" maxlength="8" aria-label="Emoji del logo" placeholder="o escribe un emoji"
+                                   class="mt-2 w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 text-center">
                         </div>
                     </div>
 
@@ -482,6 +497,22 @@
                 </form>
                 <div id="service-form-error" class="hidden mx-6 mb-5 text-xs text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg" role="alert"></div>
             </div>
+        </div>
+        <div id="logo-picker" class="logo-picker-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="logo-picker-title">
+            <section class="logo-picker-panel">
+                <header class="logo-picker-header">
+                    <div>
+                        <h3 id="logo-picker-title">Elegir logo del servicio</h3>
+                        <p>Selecciona un ícono para identificarlo en el catálogo.</p>
+                    </div>
+                    <button type="button" onclick="closeLogoPicker()" class="logo-picker-close" aria-label="Cerrar selector de logo">✕</button>
+                </header>
+                <div id="logo-picker-options" class="logo-picker-options"></div>
+                <footer class="logo-picker-footer">
+                    <span>También puedes escribir un emoji en el formulario.</span>
+                    <button type="button" onclick="closeLogoPicker()" class="logo-picker-cancel">Cancelar</button>
+                </footer>
+            </section>
         </div>
     <% } %>
 
@@ -605,15 +636,136 @@
             selectAreaFilter('all');
         }
 
+        const notificationCount = document.getElementById('notification-count');
+        const notificationStatus = document.getElementById('notification-status');
+        const notificationList = document.getElementById('notification-list');
+
+        function renderNotifications(notifications, count) {
+            notificationCount.textContent = count > 99 ? '99+' : String(count);
+            notificationCount.dataset.empty = String(count === 0);
+            notificationList.replaceChildren();
+
+            if (count === 0) {
+                notificationStatus.textContent = 'No tienes correos directos nuevos en esta sesión.';
+                return;
+            }
+
+            notificationStatus.textContent = `${count} correo${count === 1 ? '' : 's'} directo${count === 1 ? '' : 's'} desde el inicio de sesión.`;
+            notifications.forEach(notification => {
+                const item = document.createElement(notification.webLink ? 'a' : 'div');
+                item.className = 'notification-item';
+                if (notification.webLink) {
+                    item.href = notification.webLink;
+                    item.target = '_blank';
+                    item.rel = 'noopener noreferrer';
+                }
+
+                const subject = document.createElement('strong');
+                subject.className = 'notification-item-subject';
+                subject.textContent = notification.subject;
+                const sender = document.createElement('span');
+                sender.className = 'notification-item-sender';
+                sender.textContent = notification.sender;
+                const received = document.createElement('time');
+                received.className = 'notification-item-date';
+                received.dateTime = notification.receivedDateTime;
+                const receivedDate = new Date(notification.receivedDateTime);
+                received.textContent = Number.isNaN(receivedDate.getTime())
+                    ? ''
+                    : new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short' }).format(receivedDate);
+                item.append(subject, sender, received);
+                notificationList.appendChild(item);
+            });
+        }
+
+        async function refreshNotifications() {
+            try {
+                const response = await fetch('/api/notifications', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (response.redirected || !response.headers.get('content-type')?.includes('application/json')) {
+                    throw new Error('Tu sesión expiró. Vuelve a iniciar sesión para recibir notificaciones.');
+                }
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las notificaciones.');
+                renderNotifications(data.notifications || [], Number(data.count) || 0);
+            } catch (error) {
+                notificationCount.dataset.empty = 'true';
+                notificationStatus.textContent = error.message || 'No se pudieron cargar las notificaciones.';
+                notificationList.replaceChildren();
+            }
+        }
+
+        refreshNotifications();
+        window.setInterval(refreshNotifications, 60000);
+
         // ==========================================
         // FUNCIONES EXCLUSIVAS DEL ADMINISTRADOR
         // ==========================================
         <% if (user.isAdmin) { %>
             let editingServiceId = null;
+            const serviceLogoGroups = [
+                { label: 'General', icons: ['⚡', '🏢', '📋', '📌', '⭐', '🔔', '🌐', '🔗'] },
+                { label: 'Administración', icons: ['📊', '📈', '💰', '🧾', '🛒', '👥', '📅', '✉️'] },
+                { label: 'Logística', icons: ['📦', '🚚', '🏭', '🗺️', '🧭', '📍', '🚛', '📝'] },
+                { label: 'Tecnología y seguridad', icons: ['💻', '🖥️', '🖨️', '📡', '📹', '🛡️', '🔥', '🔐', '🔧', '⚙️', '🧰', '🔌'] }
+            ];
+
+            function renderLogoOptions() {
+                const container = document.getElementById('logo-picker-options');
+                container.replaceChildren();
+
+                serviceLogoGroups.forEach(group => {
+                    const section = document.createElement('section');
+                    section.className = 'logo-picker-group';
+                    const heading = document.createElement('h4');
+                    heading.textContent = group.label;
+                    const grid = document.createElement('div');
+                    grid.className = 'logo-picker-grid';
+
+                    group.icons.forEach(icon => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'logo-picker-option';
+                        button.textContent = icon;
+                        button.title = `Elegir ${icon}`;
+                        button.setAttribute('aria-label', `Elegir logo ${icon}`);
+                        button.setAttribute('aria-pressed', String(document.getElementById('modal-icono').value === icon));
+                        button.addEventListener('click', () => selectServiceLogo(icon));
+                        grid.appendChild(button);
+                    });
+
+                    section.append(heading, grid);
+                    container.appendChild(section);
+                });
+            }
+
+            function updateServiceLogoPreview() {
+                const icon = document.getElementById('modal-icono').value.trim() || '⚡';
+                document.getElementById('service-logo-preview').textContent = icon;
+            }
+
+            function openLogoPicker() {
+                renderLogoOptions();
+                document.getElementById('logo-picker').classList.remove('hidden');
+                document.querySelector('#logo-picker .logo-picker-option')?.focus();
+            }
+
+            function closeLogoPicker() {
+                document.getElementById('logo-picker').classList.add('hidden');
+            }
+
+            function selectServiceLogo(icon) {
+                document.getElementById('modal-icono').value = icon;
+                updateServiceLogoPreview();
+                closeLogoPicker();
+            }
 
             function openServiceModal() {
                 editingServiceId = null;
                 document.getElementById('create-service-form').reset();
+                updateServiceLogoPreview();
+                closeLogoPicker();
                 document.getElementById('service-modal-title').textContent = 'Registrar Nuevo Servicio';
                 document.getElementById('service-modal-description').textContent = 'Control de Administrador · Catálogo Corporativo';
                 document.getElementById('btn-submit-service').textContent = 'Guardar Servicio';
@@ -624,7 +776,9 @@
 
             function closeServiceModal() {
                 document.getElementById('service-modal').classList.add('hidden');
+                closeLogoPicker();
                 document.getElementById('create-service-form').reset();
+                updateServiceLogoPreview();
                 editingServiceId = null;
                 document.getElementById('service-form-error').classList.add('hidden');
                 document.getElementById('service-modal-title').textContent = 'Registrar Nuevo Servicio';
@@ -653,6 +807,7 @@
                     document.getElementById('modal-nombre').value = service.nombre || '';
                     document.getElementById('modal-area').value = service.areaId || 'administracion';
                     document.getElementById('modal-icono').value = service.icono || '⚡';
+                    updateServiceLogoPreview();
                     document.getElementById('modal-desc').value = service.descripcion || '';
                     document.getElementById('modal-access-type').value = service.accessType || 'internal';
                     document.getElementById('modal-ip').value = service.accessType === 'direct'
@@ -693,6 +848,14 @@
                     ? 'Se abrirá directamente en otra pestaña. El navegador debe tener acceso a la red y confiar en el certificado HTTPS del equipo.'
                     : 'El servidor de la intranet debe poder alcanzar esta dirección. Se abrirá a través del gateway.';
             }
+
+            document.getElementById('modal-icono').addEventListener('input', updateServiceLogoPreview);
+            document.getElementById('logo-picker').addEventListener('click', event => {
+                if (event.target.id === 'logo-picker') closeLogoPicker();
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeLogoPicker();
+            });
 
             async function handleSaveService(event) {
                 event.preventDefault();

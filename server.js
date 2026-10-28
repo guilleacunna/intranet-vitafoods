@@ -111,15 +111,15 @@ const msalConfig = {
     }
 };
 
-// Scopes necesarios:
-// - openid / profile / email: datos básicos del usuario
-// - GroupMember.Read.All: leer grupos del usuario via Microsoft Graph
+// Scopes necesarios para identidad, grupos y correo recibido directamente.
 const ENTRA_SCOPES = [
     'openid',
     'profile',
     'email',
-    'https://graph.microsoft.com/GroupMember.Read.All'
+    'https://graph.microsoft.com/GroupMember.Read.All',
+    'https://graph.microsoft.com/Mail.Read'
 ];
+const MAIL_SCOPES = ['https://graph.microsoft.com/Mail.Read'];
 
 let msalClient = null;
 if (ENTRA_ENABLED && ENTRA_TENANT_ID && ENTRA_CLIENT_ID && ENTRA_CLIENT_SECRET) {
@@ -268,6 +268,103 @@ const requireAdmin = (req, res, next) => {
     next();
 };
 
+const proxyMiddlewareCache = new Map();
+
+function proxyServiceRequest(req, res, next, service, stripPrefix = '') {
+    const user = req.session?.user;
+    if (!user) return res.redirect('/');
+
+    if (service.requiredGroup === 'ti' && !user.isTI && !user.isAdmin) {
+        return res.status(403).render('proxy-gateway', {
+            status: 'forbidden', user, service,
+            message: `Acceso denegado: Este recurso requiere el grupo '${ENTRA_TI_GROUP}' en Microsoft Entra ID.`
+        });
+    }
+
+    if (service.requiredGroup === 'admin' && !user.isAdmin) {
+        return res.status(403).render('proxy-gateway', {
+            status: 'forbidden', user, service,
+            message: `Acceso restringido: Solo para el grupo '${ENTRA_ADMIN_GROUP}'.`
+        });
+    }
+
+    if (service.accessType !== 'internal') {
+        return res.status(400).render('proxy-gateway', {
+            status: 'not_found', user, service,
+            message: 'Este servicio no está configurado para utilizar el proxy interno.'
+        });
+    }
+
+    const target = service.targetUrl
+        || process.env[`PROXY_TARGET_${service.id.toUpperCase()}`]
+        || (service.internalIp ? `http://${service.internalIp}` : '');
+
+    if (!target) {
+        return res.render('proxy-gateway', {
+            status: 'demo_active', user, service,
+            message: 'Configura PROXY_TARGET_* en .env para conectar al recurso real.'
+        });
+    }
+
+    const cacheKey = `${service.id}:${target}:${stripPrefix}`;
+    let proxyMiddleware = proxyMiddlewareCache.get(cacheKey);
+    if (!proxyMiddleware) {
+        const proxyOptions = {
+            target,
+            changeOrigin: true,
+            secure: false,
+            on: {
+                proxyReq(proxyReq, request) {
+                    proxyReq.setHeader('X-Authenticated-User', request.session.user.email);
+                    proxyReq.setHeader('X-User-Role', request.session.user.role);
+                    proxyReq.setHeader('X-Entra-Groups', (request.session.user.groups || []).join(';'));
+                    proxyReq.setHeader('X-Intranet-Gateway', 'VTF-Secure-Reverse-Proxy');
+                    proxyReq.setHeader('X-Forwarded-Host', request.get('host'));
+                },
+                error(err, request, response) {
+                    console.error(`[PROXY ERROR] ${service.nombre}:`, err.message);
+                    if (response.headersSent) return response.end();
+                    response.status(502).render('proxy-gateway', {
+                        status: 'connection_error', user: request.session.user, service,
+                        message: `No fue posible conectar con el servidor interno (${service.internalIp || service.id}).`
+                    });
+                }
+            }
+        };
+
+        if (stripPrefix) proxyOptions.pathRewrite = { [`^${stripPrefix}`]: '' };
+        proxyMiddleware = createProxyMiddleware(proxyOptions);
+        proxyMiddlewareCache.set(cacheKey, proxyMiddleware);
+    }
+
+    return proxyMiddleware(req, res, next);
+}
+
+app.use((req, res, next) => {
+    const referer = req.get('referer');
+    if (!referer) return next();
+
+    let refererUrl;
+    try {
+        refererUrl = new URL(referer);
+    } catch {
+        return next();
+    }
+
+    const requestOrigin = `${req.protocol}://${req.get('host')}`;
+    if (refererUrl.origin !== requestOrigin) return next();
+
+    const match = refererUrl.pathname.match(/^\/proxy\/([^/]+)(?:\/|$)/i);
+    if (!match) return next();
+
+    const key = match[1].toLowerCase();
+    const service = loadServices().find(item => item.id.toLowerCase() === key);
+    if (!service || service.accessType !== 'internal') return next();
+    if (!req.session?.user) return res.redirect('/?error=session_expired');
+
+    return proxyServiceRequest(req, res, next, service);
+});
+
 // ==========================================
 // 6. RUTAS DE AUTENTICACIÓN
 // ==========================================
@@ -397,6 +494,8 @@ app.get('/auth/callback', async (req, res) => {
         req.session.regenerate((err) => {
             if (err) return res.redirect('/?error=session_error');
             req.session.user = userData;
+            req.session.entraAccount = account;
+            req.session.mailSessionStartedAt = new Date().toISOString();
             req.session.save(() => res.redirect('/dashboard'));
         });
 
@@ -504,6 +603,83 @@ app.get('/dashboard', requireAuth, (req, res) => {
     });
 
     res.render('dashboard', { user, companyName: COMPANY_NAME, areas, servicios: visibleServices });
+});
+
+app.get('/api/notifications', requireAuth, async (req, res) => {
+    if (!msalClient || !req.session.entraAccount || !req.session.mailSessionStartedAt) {
+        return res.status(503).json({
+            error: 'Las notificaciones de correo están disponibles al iniciar sesión con Microsoft Entra ID.'
+        });
+    }
+
+    try {
+        const tokenResponse = await msalClient.acquireTokenSilent({
+            account: req.session.entraAccount,
+            scopes: MAIL_SCOPES
+        });
+        const query = new URLSearchParams({
+            '$filter': `receivedDateTime ge ${req.session.mailSessionStartedAt}`,
+            '$orderby': 'receivedDateTime desc',
+            '$top': '50',
+            '$select': 'id,subject,from,receivedDateTime,toRecipients,webLink'
+        });
+        const graphResponse = await fetch(
+            `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?${query}`,
+            { headers: { Authorization: `Bearer ${tokenResponse.accessToken}` } }
+        );
+
+        if (!graphResponse.ok) {
+            let graphErrorCode = 'unknown';
+            try {
+                const errorBody = await graphResponse.json();
+                graphErrorCode = errorBody.error?.code || graphErrorCode;
+            } catch {
+                // The HTTP status remains useful when Graph returns a non-JSON error.
+            }
+            console.error(`[MAIL] Graph returned HTTP ${graphResponse.status} (${graphErrorCode}).`);
+            return res.status(graphResponse.status === 403 ? 403 : 502).json({
+                error: graphResponse.status === 403
+                    ? 'Microsoft no autorizó la lectura del correo. TI debe habilitar y consentir el permiso Mail.Read.'
+                    : 'No fue posible consultar los correos de esta sesión.'
+            });
+        }
+
+        const data = await graphResponse.json();
+        const userEmail = req.session.user.email.toLowerCase();
+        const notifications = (data.value || [])
+            .filter(message => (message.toRecipients || []).some(recipient =>
+                recipient.emailAddress?.address?.toLowerCase() === userEmail
+            ))
+            .map(message => {
+                let webLink = '';
+                try {
+                    const link = new URL(message.webLink);
+                    if (link.protocol === 'https:') webLink = link.href;
+                } catch {
+                    // A missing or malformed Outlook link leaves the notification non-clickable.
+                }
+
+                return {
+                    id: message.id,
+                    subject: message.subject || '(Sin asunto)',
+                    sender: message.from?.emailAddress?.name
+                        || message.from?.emailAddress?.address
+                        || 'Remitente desconocido',
+                    receivedDateTime: message.receivedDateTime,
+                    webLink
+                };
+            });
+
+        res.json({
+            count: notifications.length,
+            notifications: notifications.slice(0, 10)
+        });
+    } catch (err) {
+        console.error('[MAIL] Error consultando notificaciones:', err.errorCode || err.code || 'unknown');
+        res.status(502).json({
+            error: 'No fue posible consultar el correo. Revisa la conexión y los permisos Mail.Read de Entra ID.'
+        });
+    }
 });
 
 // ==========================================
@@ -703,10 +879,9 @@ app.get('/launch/:service', requireAuth, (req, res) => {
 // 9. REVERSE PROXY HACIA RECURSOS INTERNOS
 // ==========================================
 
-app.get('/proxy/:service', requireAuth, (req, res, next) => {
+app.all(['/proxy/:service', '/proxy/:service/*'], requireAuth, (req, res, next) => {
     const key      = String(req.params.service).toLowerCase();
-    const services = loadServices();
-    const service  = services.find(s => s.id.toLowerCase() === key);
+    const service  = loadServices().find(s => s.id.toLowerCase() === key);
     const user     = req.session.user;
 
     if (!service) {
@@ -717,61 +892,7 @@ app.get('/proxy/:service', requireAuth, (req, res, next) => {
         });
     }
 
-    if (service.requiredGroup === 'ti' && !user.isTI && !user.isAdmin) {
-        return res.status(403).render('proxy-gateway', {
-            status: 'forbidden', user, service,
-            message: `Acceso denegado: Este recurso requiere el grupo '${ENTRA_TI_GROUP}' en Microsoft Entra ID.`
-        });
-    }
-
-    if (service.requiredGroup === 'admin' && !user.isAdmin) {
-        return res.status(403).render('proxy-gateway', {
-            status: 'forbidden', user, service,
-            message: `Acceso restringido: Solo para el grupo '${ENTRA_ADMIN_GROUP}'.`
-        });
-    }
-
-    if (service.accessType === 'direct' || service.accessType === 'external') {
-        return res.status(400).render('proxy-gateway', {
-            status: 'not_found', user, service,
-            message: 'Este servicio se abre directamente desde su tarjeta y no utiliza el proxy de la intranet.'
-        });
-    }
-
-    const target = service.targetUrl
-        || process.env[`PROXY_TARGET_${service.id.toUpperCase()}`]
-        || (service.internalIp ? `http://${service.internalIp}` : '');
-
-    if (target) {
-        return createProxyMiddleware({
-            target,
-            changeOrigin: true,
-            secure: false,
-            pathRewrite: { [`^/proxy/${key}`]: '' },
-            on: {
-                proxyReq(proxyReq, request) {
-                    proxyReq.setHeader('X-Authenticated-User', request.session.user.email);
-                    proxyReq.setHeader('X-User-Role',          request.session.user.role);
-                    proxyReq.setHeader('X-Entra-Groups',       (request.session.user.groups || []).join(';'));
-                    proxyReq.setHeader('X-Intranet-Gateway',   'VTF-Secure-Reverse-Proxy');
-                    proxyReq.setHeader('X-Forwarded-Host',     request.get('host'));
-                },
-                error(err, request, response) {
-                    console.error(`[PROXY ERROR] ${service.nombre}:`, err.message);
-                    response.status(502).render('proxy-gateway', {
-                        status: 'connection_error', user: request.session.user, service,
-                        message: `No fue posible conectar con el servidor interno (${service.internalIp}).`
-                    });
-                }
-            }
-        })(req, res, next);
-    }
-
-    // Modo demo: muestra la pantalla del Gateway explicando la arquitectura
-    res.render('proxy-gateway', {
-        status: 'demo_active', user, service,
-        message: 'Conexión Segura Establecida — Modo MVP. Configura PROXY_TARGET_* en .env para conectar al recurso real.'
-    });
+    return proxyServiceRequest(req, res, next, service, `/proxy/${key}`);
 });
 
 // ==========================================
