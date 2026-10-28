@@ -249,6 +249,7 @@
                     <% servicios.forEach(servicio => { %>
                         <div class="service-card bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 flex flex-col justify-between space-y-4"
                              data-service-id="<%= servicio.id %>"
+                             data-access-type="<%= servicio.accessType %>"
                              data-area-id="<%= servicio.areaId %>"
                              data-area-name="<%= servicio.areaNombre %>"
                              data-title="<%= servicio.nombre.toLowerCase() %>"
@@ -335,6 +336,27 @@
             </div>
 
         </main>
+    </div>
+
+    <div id="vpn-warning-modal"
+         class="vpn-warning-overlay hidden"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="vpn-warning-title"
+         aria-describedby="vpn-warning-description"
+         aria-hidden="true">
+        <section class="vpn-warning-card">
+            <div class="vpn-warning-icon" aria-hidden="true">🔒</div>
+            <div class="vpn-warning-copy">
+                <h2 id="vpn-warning-title">Conexión a VPN requerida</h2>
+                <p id="vpn-warning-description">Este servicio requiere conexión a la red corporativa o a la VPN. Conéctate a la VPN para acceder.</p>
+            </div>
+            <p id="vpn-warning-error" class="vpn-warning-error hidden" role="alert">El navegador bloqueó la nueva pestaña. Permite ventanas emergentes e inténtalo nuevamente.</p>
+            <div class="vpn-warning-actions">
+                <button type="button" id="vpn-warning-cancel" class="vpn-warning-cancel">Cancelar</button>
+                <button type="button" id="vpn-warning-continue" class="vpn-warning-continue">Continuar al servicio</button>
+            </div>
+        </section>
     </div>
 
     <!-- ======================================================== -->
@@ -461,6 +483,72 @@
     <script>
         let currentAreaFilter = 'all';
         let currentSearchQuery = '';
+        let pendingDirectServiceUrl = '';
+        let vpnWarningReturnFocus = null;
+
+        const vpnWarningModal = document.getElementById('vpn-warning-modal');
+        const vpnWarningError = document.getElementById('vpn-warning-error');
+
+        function closeVpnWarning() {
+            vpnWarningModal.classList.add('hidden');
+            vpnWarningModal.setAttribute('aria-hidden', 'true');
+            vpnWarningError.classList.add('hidden');
+            pendingDirectServiceUrl = '';
+            if (vpnWarningReturnFocus instanceof HTMLElement) vpnWarningReturnFocus.focus();
+        }
+
+        document.getElementById('services-container')?.addEventListener('click', event => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+
+            const launchLink = target.closest('a[href^="/launch/"]');
+            if (!launchLink) return;
+
+            const serviceCard = launchLink.closest('.service-card');
+            if (serviceCard?.dataset.accessType !== 'direct') return;
+
+            event.preventDefault();
+            pendingDirectServiceUrl = launchLink.href;
+            vpnWarningReturnFocus = launchLink;
+            vpnWarningModal.classList.remove('hidden');
+            vpnWarningModal.setAttribute('aria-hidden', 'false');
+            document.getElementById('vpn-warning-cancel').focus();
+        });
+
+        document.getElementById('vpn-warning-cancel').addEventListener('click', closeVpnWarning);
+        document.getElementById('vpn-warning-continue').addEventListener('click', () => {
+            if (!pendingDirectServiceUrl) return;
+            const openedWindow = window.open('', '_blank');
+            if (!openedWindow) {
+                vpnWarningError.classList.remove('hidden');
+                return;
+            }
+            openedWindow.opener = null;
+            openedWindow.location.href = pendingDirectServiceUrl;
+            closeVpnWarning();
+        });
+        vpnWarningModal.addEventListener('click', event => {
+            if (event.target === vpnWarningModal) closeVpnWarning();
+        });
+        document.addEventListener('keydown', event => {
+            if (vpnWarningModal.classList.contains('hidden')) return;
+            if (event.key === 'Escape') {
+                closeVpnWarning();
+                return;
+            }
+            if (event.key === 'Tab') {
+                const focusableButtons = vpnWarningModal.querySelectorAll('button:not(:disabled)');
+                const firstButton = focusableButtons[0];
+                const lastButton = focusableButtons[focusableButtons.length - 1];
+                if (event.shiftKey && document.activeElement === firstButton) {
+                    event.preventDefault();
+                    lastButton.focus();
+                } else if (!event.shiftKey && document.activeElement === lastButton) {
+                    event.preventDefault();
+                    firstButton.focus();
+                }
+            }
+        });
 
         function setActiveSidebarItem(areaId) {
             document.querySelectorAll('.sidebar-btn').forEach(button => {

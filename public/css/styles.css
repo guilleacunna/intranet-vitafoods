@@ -719,6 +719,124 @@
     border-color: var(--brand-magenta);
 }
 
+.vpn-warning-overlay {
+    position: fixed;
+    z-index: 70;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgb(18 15 28 / 58%);
+    backdrop-filter: blur(4px);
+}
+
+.vpn-warning-overlay.hidden {
+    display: none;
+}
+
+.vpn-warning-card {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 16px;
+    width: min(100%, 460px);
+    padding: 26px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: 0 24px 70px rgb(18 15 28 / 28%);
+    animation: vpn-warning-enter 160ms ease-out;
+}
+
+.vpn-warning-icon {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border-radius: 14px;
+    background: #fff1f7;
+    color: var(--brand-purple);
+    font-size: 23px;
+}
+
+.vpn-warning-copy h2 {
+    margin: 2px 0 7px;
+    color: var(--text-primary);
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.vpn-warning-copy p,
+.vpn-warning-error {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.vpn-warning-error {
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border: 1px solid #fecaca;
+    border-radius: 9px;
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.vpn-warning-actions {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    gap: 9px;
+    margin-top: 4px;
+}
+
+.vpn-warning-actions button {
+    min-height: 40px;
+    padding: 0 15px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.vpn-warning-cancel {
+    border-color: var(--border) !important;
+    background: var(--surface);
+    color: var(--text-secondary);
+}
+
+.vpn-warning-cancel:hover {
+    background: #f7f8fc;
+}
+
+.vpn-warning-continue {
+    background: var(--brand-purple);
+    color: #fff;
+}
+
+.vpn-warning-continue:hover {
+    background: #2f0877;
+}
+
+.vpn-warning-actions button:focus-visible {
+    outline: 2px solid var(--brand-magenta);
+    outline-offset: 3px;
+}
+
+@keyframes vpn-warning-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 .service-logo-preview {
     display: grid;
     width: 42px;
