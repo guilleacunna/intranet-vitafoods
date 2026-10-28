@@ -91,6 +91,8 @@ const ENTRA_TENANT_ID     = process.env.ENTRA_ID_TENANT_ID || '';
 const ENTRA_CLIENT_ID     = process.env.ENTRA_ID_CLIENT_ID || '';
 const ENTRA_CLIENT_SECRET = process.env.ENTRA_ID_CLIENT_SECRET || '';
 const ENTRA_REDIRECT_URI  = process.env.ENTRA_ID_REDIRECT_URI || 'http://localhost:3000/auth/callback';
+const ENTRA_POST_LOGOUT_REDIRECT_URI = process.env.ENTRA_ID_POST_LOGOUT_REDIRECT_URI
+    || ENTRA_REDIRECT_URI;
 
 // Nombres de los grupos de seguridad creados en Entra ID
 const ENTRA_TI_GROUP    = process.env.ENTRA_ID_TI_GROUP_NAME || 'Equipo TI';
@@ -320,6 +322,7 @@ app.get('/auth/login', async (req, res) => {
         const authCodeUrlParams = {
             scopes: ENTRA_SCOPES,
             redirectUri: ENTRA_REDIRECT_URI,
+            prompt: 'login',
             state: req.session.id // anti-CSRF
         };
 
@@ -380,6 +383,8 @@ app.get('/auth/callback', async (req, res) => {
         console.error('[ENTRA] Error en callback:', error, error_description);
         return res.redirect(`/?error=${encodeURIComponent(error_description || error)}`);
     }
+
+    if (!code && !state) return res.redirect('/');
 
     // Validar anti-CSRF state
     if (!code || state !== req.session.authState) {
@@ -494,15 +499,25 @@ app.post('/login/demo', (req, res) => {
 
 // ── Cierre de sesión ─────────────────────────────────────────────────────────
 app.get('/logout', (req, res) => {
-    const userEmail = req.session?.user?.email || '';
-    req.session.destroy(() => {
-        res.clearCookie('vtf_session_id');
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('[LOGOUT] Error al destruir la sesión:', err);
+            return res.status(500).send('No fue posible cerrar la sesión. Intenta nuevamente.');
+        }
 
-        // Si Entra ID estaba activo, cerrar también la sesión de Microsoft
+        res.clearCookie('vtf_session_id', {
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: isProduction
+        });
+
         if (ENTRA_ENABLED && ENTRA_TENANT_ID) {
-            const msLogoutUrl = `https://login.microsoftonline.com/${ENTRA_TENANT_ID}/oauth2/v2.0/logout`
-                + `?post_logout_redirect_uri=${encodeURIComponent('http://localhost:' + PORT + '/')}`;
-            return res.redirect(msLogoutUrl);
+            const msLogoutUrl = new URL(
+                `https://login.microsoftonline.com/${ENTRA_TENANT_ID}/oauth2/v2.0/logout`
+            );
+            msLogoutUrl.searchParams.set('post_logout_redirect_uri', ENTRA_POST_LOGOUT_REDIRECT_URI);
+            return res.redirect(msLogoutUrl.toString());
         }
 
         res.redirect('/');

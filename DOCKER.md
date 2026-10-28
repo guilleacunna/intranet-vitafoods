@@ -26,6 +26,8 @@ docker compose down
 
 La aplicación inicia con Entra ID según el `.env`. Para el inicio de sesión local, `ENTRA_ID_REDIRECT_URI` debe ser `http://localhost:3000/auth/callback` y esa misma URI debe estar registrada en Entra ID. Al reiniciar el contenedor, inicia sesión de nuevo; las sesiones y la caché MSAL no se conservan entre reinicios.
 
+Al cerrar sesión se cierra también la sesión web de Microsoft y el siguiente acceso solicita una autenticación nueva. Por defecto, Microsoft vuelve a la URI de callback registrada en `ENTRA_ID_REDIRECT_URI` y la aplicación redirige al inicio. Si se configura `ENTRA_ID_POST_LOGOUT_REDIRECT_URI`, esa dirección también debe estar registrada en Entra ID. La frecuencia con que Microsoft vuelva a pedir MFA se controla con la política de Acceso Condicional de Entra; `prompt=login` por sí solo no obliga a repetir el autenticador si Entra considera vigente la comprobación MFA.
+
 Compose publica el puerto 3000 del contenedor solo en `127.0.0.1` del equipo y configura `TRUST_PROXY=0`, ya que esta demo no está detrás de un proxy inverso. Se puede cambiar el puerto del equipo con `HOST_PORT`, por ejemplo `HOST_PORT=8080`, pero el redirect URI de Entra debe continuar coincidiendo con el host y puerto desde el que se inicia sesión.
 
 ## Presentación desde otros equipos
