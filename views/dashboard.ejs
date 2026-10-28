@@ -86,18 +86,29 @@
                     <span class="dashboard-brand-name"><%= companyName %></span>
                 </div>
                 <div>
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Áreas por Catálogo</p>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Navegación</p>
                     <nav class="space-y-1" id="sidebar-nav">
+                        <button type="button"
+                                onclick="selectHomeView()"
+                                data-sidebar-area="home"
+                                aria-current="page"
+                                class="sidebar-btn w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all text-red-600 bg-red-50 border border-red-200/60 shadow-xs">
+                            <span class="flex items-center space-x-2.5">
+                                <span class="sidebar-area-icon" aria-hidden="true">⌂</span>
+                                <span>Inicio</span>
+                            </span>
+                        </button>
+
                         <!-- Ver Todos -->
                         <button type="button" 
                                 onclick="selectAreaFilter('all')" 
                                 data-sidebar-area="all"
-                                class="sidebar-btn w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all text-red-600 bg-red-50 border border-red-200/60 shadow-xs">
+                                class="sidebar-btn w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
                             <span class="flex items-center space-x-2.5">
                                 <span class="sidebar-area-icon" aria-hidden="true">🏢</span>
                                 <span>Todas las Áreas</span>
                             </span>
-                            <span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-md font-bold"><%= servicios.length %></span>
+                            <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-semibold"><%= servicios.length %></span>
                         </button>
 
                         <!-- Botones por cada Área -->
@@ -168,7 +179,37 @@
                 </div>
             </div>
 
-            <div class="space-y-4">
+            <section id="company-home" class="company-home space-y-5">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">Información general</h2>
+                    <p class="text-xs text-slate-500">Novedades e información útil de <%= companyName %>.</p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <article class="company-info-card">
+                        <span class="company-info-icon" aria-hidden="true">🕒</span>
+                        <div>
+                            <h3>Horario</h3>
+                            <p>La información de horarios se publicará aquí.</p>
+                        </div>
+                    </article>
+                    <article class="company-info-card">
+                        <span class="company-info-icon" aria-hidden="true">🏢</span>
+                        <div>
+                            <h3>Información</h3>
+                            <p>La información general de la empresa se publicará aquí.</p>
+                        </div>
+                    </article>
+                    <article class="company-info-card">
+                        <span class="company-info-icon" aria-hidden="true">📰</span>
+                        <div>
+                            <h3>Noticias</h3>
+                            <p>No hay noticias publicadas por el momento.</p>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <div id="service-catalog" class="space-y-4 hidden">
                 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="flex items-center space-x-3">
@@ -425,24 +466,38 @@
         let currentAreaFilter = 'all';
         let currentSearchQuery = '';
 
+        function setActiveSidebarItem(areaId) {
+            document.querySelectorAll('.sidebar-btn').forEach(button => {
+                const isActive = button.getAttribute('data-sidebar-area') === areaId;
+                button.classList.toggle('text-red-600', isActive);
+                button.classList.toggle('bg-red-50', isActive);
+                button.classList.toggle('border', isActive);
+                button.classList.toggle('border-red-200/60', isActive);
+                button.classList.toggle('font-semibold', isActive);
+                button.classList.toggle('shadow-xs', isActive);
+                button.classList.toggle('text-slate-600', !isActive);
+                button.classList.toggle('hover:bg-slate-50', !isActive);
+                button.classList.toggle('hover:text-slate-900', !isActive);
+                if (isActive) button.setAttribute('aria-current', 'page');
+                else button.removeAttribute('aria-current');
+            });
+        }
+
+        function selectHomeView() {
+            document.getElementById('company-home').classList.remove('hidden');
+            document.getElementById('service-catalog').classList.add('hidden');
+            document.getElementById('active-filter-badge').classList.add('hidden');
+            setActiveSidebarItem('home');
+        }
+
         /**
          * Filtrado in-place sin correr la pantalla ni desplazar el scroll
          */
         function selectAreaFilter(areaId) {
             currentAreaFilter = areaId;
-
-            // Sincronizar Menú Lateral
-            const sidebarButtons = document.querySelectorAll('.sidebar-btn');
-            sidebarButtons.forEach(btn => {
-                const btnArea = btn.getAttribute('data-sidebar-area');
-                if (btnArea === areaId) {
-                    btn.classList.remove('text-slate-600', 'hover:bg-slate-50', 'hover:text-slate-900');
-                    btn.classList.add('text-red-600', 'bg-red-50', 'border', 'border-red-200/60', 'font-semibold', 'shadow-xs');
-                } else {
-                    btn.classList.remove('text-red-600', 'bg-red-50', 'border', 'border-red-200/60', 'font-semibold', 'shadow-xs');
-                    btn.classList.add('text-slate-600', 'hover:bg-slate-50', 'hover:text-slate-900');
-                }
-            });
+            document.getElementById('company-home').classList.add('hidden');
+            document.getElementById('service-catalog').classList.remove('hidden');
+            setActiveSidebarItem(areaId);
 
             // Actualizar indicadores
             const badge = document.getElementById('active-filter-badge');
@@ -452,7 +507,7 @@
                 badge.classList.add('hidden');
             } else {
                 badge.classList.remove('hidden');
-                const activeButton = Array.from(sidebarButtons)
+                const activeButton = Array.from(document.querySelectorAll('.sidebar-btn'))
                     .find(button => button.getAttribute('data-sidebar-area') === areaId);
                 badgeName.textContent = activeButton?.querySelector('.sidebar-area-icon')?.nextElementSibling?.textContent.trim() || '';
             }
