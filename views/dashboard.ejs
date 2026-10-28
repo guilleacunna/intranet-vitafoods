@@ -17,9 +17,6 @@
         .service-card.is-hidden {
             display: none !important;
         }
-        .area-card {
-            transition: all 0.2s ease-in-out;
-        }
     </style>
 </head>
 <body class="dashboard-page min-h-screen flex flex-col text-slate-800 antialiased">
@@ -136,7 +133,7 @@
 
             <!-- Soporte -->
             <div class="text-[11px] text-slate-400 px-3 pt-4 border-t border-slate-100">
-                Seguridad &middot; Microsoft Entra ID + Proxy
+                Seguridad &middot; Microsoft Entra ID
             </div>
         </aside>
 
@@ -151,7 +148,7 @@
                     </div>
                     <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">¡Hola, <%= user.name %>!</h1>
                     <p class="text-slate-300 text-xs md:text-sm max-w-xl">
-                        Haz clic en una de las tarjetas de área para ver exclusivamente sus servicios. La pantalla se mantendrá fija en tu posición.
+                        Selecciona un área del menú lateral para ver sus servicios disponibles.
                     </p>
                 </div>
                 <div class="welcome-actions">
@@ -171,97 +168,7 @@
                 </div>
             </div>
 
-            <!-- ======================================================== -->
-            <!-- SECCIÓN: TARJETAS DE ÁREA (FILTRO DIRECTO SIN SCROLL)     -->
-            <!-- ======================================================== -->
             <div class="space-y-4">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-800">Áreas de la Empresa</h2>
-                        <p class="text-xs text-slate-500">Haz clic en un área para desplegar en esta misma vista solo sus servicios correspondientes</p>
-                    </div>
-                    <!-- Botón para ver todas -->
-                    <button type="button" 
-                            id="btn-reset-filter"
-                            onclick="selectAreaFilter('all')" 
-                            class="hidden self-start sm:self-auto text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors items-center space-x-1.5">
-                        <span>✕</span>
-                        <span>Ver todas las áreas</span>
-                    </button>
-                </div>
-
-                <!-- Grid de Tarjetas de Área -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    
-                    <!-- Tarjeta: Todas las Áreas -->
-                    <button type="button"
-                            onclick="selectAreaFilter('all')"
-                            data-area-id="all"
-                            class="area-card text-left p-5 rounded-2xl border-2 transition-all cursor-pointer bg-white border-red-600 shadow-md ring-2 ring-red-600/10 flex flex-col justify-between space-y-3 group">
-                        <div class="flex justify-between items-start">
-                            <span class="area-card-icon bg-slate-50 rounded-xl group-hover:scale-105 transition-transform" aria-hidden="true">🏢</span>
-                            <span class="badge-count text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                                <%= servicios.length %> serv.
-                            </span>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors">Todas las Áreas</h3>
-                            <p class="text-[11px] text-slate-500 mt-0.5">Catálogo general autorizado</p>
-                        </div>
-                        <div class="status-indicator text-[10px] font-bold text-red-600 flex items-center space-x-1 pt-1 border-t border-slate-100">
-                            <span>●</span>
-                            <span>Vista Completa</span>
-                        </div>
-                    </button>
-
-                    <!-- Tarjetas Dinámicas por Área -->
-                    <% areas.forEach(area => { %>
-                        <% if (!area.isLocked) { %>
-                            <button type="button"
-                                    onclick="selectAreaFilter('<%= area.id %>')"
-                                    data-area-id="<%= area.id %>"
-                                    class="area-card text-left p-5 rounded-2xl border-2 transition-all cursor-pointer bg-white border-slate-200/80 hover:border-slate-300 hover:shadow-sm flex flex-col justify-between space-y-3 group">
-                                <div class="flex justify-between items-start">
-                                    <span class="area-card-icon bg-slate-50 rounded-xl group-hover:scale-105 transition-transform" aria-hidden="true"><%= area.icono %></span>
-                                    <span class="badge-count text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                        <%= area.totalServicios %> serv.
-                                    </span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors"><%= area.nombre %></h3>
-                                    <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-2"><%= area.descripcion %></p>
-                                </div>
-                                <div class="status-indicator text-[10px] font-medium text-slate-400 flex items-center space-x-1 pt-1 border-t border-slate-100">
-                                    <span>Ver servicios &rarr;</span>
-                                </div>
-                            </button>
-                        <% } else { %>
-                            <!-- Tarjeta bloqueada para área de TI si es público general -->
-                            <div class="text-left p-5 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3 opacity-70 cursor-not-allowed">
-                                <div class="flex justify-between items-start">
-                                    <span class="area-card-icon bg-slate-100 rounded-xl opacity-50" aria-hidden="true">🔒</span>
-                                    <span class="text-[10px] font-mono bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                                        Grupo TI
-                                    </span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-slate-600 text-sm"><%= area.nombre %></h3>
-                                    <p class="text-[11px] text-slate-400 mt-0.5">Acceso exclusivo para el grupo de seguridad de TI en Entra ID.</p>
-                                </div>
-                                <div class="text-[10px] text-amber-600 font-semibold pt-1 border-t border-slate-200">
-                                    <span>Requiere autorización TI</span>
-                                </div>
-                            </div>
-                        <% } %>
-                    <% }) %>
-
-                </div>
-            </div>
-
-            <!-- ======================================================== -->
-            <!-- SECCIÓN: SERVICIOS POR ÁREA (FILTRADO IN-PLACE)           -->
-            <!-- ======================================================== -->
-            <div class="space-y-4 pt-2">
                 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="flex items-center space-x-3">
@@ -310,7 +217,7 @@
                              data-title="<%= servicio.nombre.toLowerCase() %>"
                              data-desc="<%= servicio.descripcion.toLowerCase() %>">
                             
-                            <a href="<%= servicio.accessType === 'external' || servicio.accessType === 'direct' ? '/launch/' + servicio.id : servicio.url %>"
+                            <a href="/launch/<%= servicio.id %>"
                                target="_blank"
                                rel="noopener noreferrer"
                                class="service-card-main block space-y-3">
@@ -325,7 +232,7 @@
                                     
                                     <div class="flex flex-col items-end gap-1">
                                         <span class="inline-flex items-center text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                            <%= servicio.accessType === 'external' ? '↗ Externo' : servicio.accessType === 'direct' ? '↗ Acceso directo' : '● Proxy' %>
+                                            <%= servicio.accessType === 'external' ? '↗ Externo' : '↗ Acceso directo' %>
                                         </span>
                                         <% if (servicio.requiredGroup === 'ti') { %>
                                             <span class="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded font-mono font-bold">
@@ -342,10 +249,8 @@
                                 <div class="text-[10px] font-mono text-slate-400 truncate max-w-[150px]">
                                     <% if (servicio.accessType === 'external') { %>
                                         Sitio externo
-                                    <% } else if (servicio.accessType === 'direct') { %>
-                                        IP directa: <span class="text-slate-600 font-semibold"><%= servicio.internalIp %></span>
                                     <% } else { %>
-                                        IP: <span class="text-slate-600 font-semibold"><%= servicio.internalIp %></span>
+                                        IP directa: <span class="text-slate-600 font-semibold"><%= servicio.directUrl %></span>
                                     <% } %>
                                 </div>
 
@@ -365,7 +270,7 @@
                                         </button>
                                     <% } %>
 
-                                    <a href="<%= servicio.accessType === 'external' || servicio.accessType === 'direct' ? '/launch/' + servicio.id : servicio.url %>"
+                                    <a href="/launch/<%= servicio.id %>"
                                        target="_blank" rel="noopener noreferrer"
                                        class="inline-flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2 px-3.5 rounded-xl transition-all shadow-xs group">
                                         <span><%= servicio.accessType === 'external' ? 'Abrir sitio' : 'Abrir servicio' %></span>
@@ -424,17 +329,16 @@
                     <div>
                         <label for="modal-access-type" class="block text-xs font-bold text-slate-700 mb-1">Tipo de servicio</label>
                         <select id="modal-access-type" required onchange="toggleServiceAddressFields()" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600 bg-white">
-                            <option value="internal">Interno — IP o host de la red corporativa</option>
                             <option value="direct">IP interna directa — abrir en pestaña nueva</option>
                             <option value="external">Externo — sitio web con URL propia</option>
                         </select>
                     </div>
 
-                    <div id="internal-address-fields">
-                        <label for="modal-ip" class="block text-xs font-bold text-slate-700 mb-1">Dirección interna (IP/host y puerto)</label>
-                        <input type="text" id="modal-ip" required placeholder="ej. 192.0.2.10:8080"
+                    <div id="direct-address-fields">
+                        <label for="modal-direct-url" class="block text-xs font-bold text-slate-700 mb-1">URL interna directa (protocolo, IP/host y puerto)</label>
+                        <input type="url" id="modal-direct-url" required placeholder="https://192.0.2.10:11443"
                                class="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600">
-                        <p id="internal-address-help" class="mt-1 text-[11px] text-slate-500">El servidor de la intranet debe poder alcanzar esta dirección. Se abrirá a través del gateway.</p>
+                        <p id="direct-address-help" class="mt-1 text-[11px] text-slate-500">Se abrirá directamente en otra pestaña. El equipo del usuario debe tener acceso a esta dirección y confiar en su certificado HTTPS.</p>
                     </div>
 
                     <div id="external-address-fields" class="hidden">
@@ -527,40 +431,6 @@
         function selectAreaFilter(areaId) {
             currentAreaFilter = areaId;
 
-            // Actualizar Tarjetas de Área
-            const areaCards = document.querySelectorAll('.area-card');
-            areaCards.forEach(card => {
-                const id = card.getAttribute('data-area-id');
-                const badge = card.querySelector('.badge-count');
-                const indicator = card.querySelector('.status-indicator');
-
-                if (id === areaId) {
-                    card.classList.remove('border-slate-200/80', 'hover:border-slate-300', 'shadow-xs');
-                    card.classList.add('border-red-600', 'shadow-md', 'ring-2', 'ring-red-600/10', 'bg-red-50/20');
-                    if (badge) {
-                        badge.classList.remove('bg-slate-100', 'text-slate-600');
-                        badge.classList.add('bg-red-100', 'text-red-700');
-                    }
-                    if (indicator) {
-                        indicator.classList.remove('text-slate-400');
-                        indicator.classList.add('text-red-600', 'font-bold');
-                        indicator.innerHTML = '<span>●</span><span>Área Activa</span>';
-                    }
-                } else {
-                    card.classList.remove('border-red-600', 'shadow-md', 'ring-2', 'ring-red-600/10', 'bg-red-50/20');
-                    card.classList.add('border-slate-200/80', 'hover:border-slate-300');
-                    if (badge) {
-                        badge.classList.remove('bg-red-100', 'text-red-700');
-                        badge.classList.add('bg-slate-100', 'text-slate-600');
-                    }
-                    if (indicator) {
-                        indicator.classList.remove('text-red-600', 'font-bold');
-                        indicator.classList.add('text-slate-400');
-                        indicator.innerHTML = id === 'all' ? '<span>●</span><span>Vista Completa</span>' : '<span>Ver servicios &rarr;</span>';
-                    }
-                }
-            });
-
             // Sincronizar Menú Lateral
             const sidebarButtons = document.querySelectorAll('.sidebar-btn');
             sidebarButtons.forEach(btn => {
@@ -577,20 +447,14 @@
             // Actualizar indicadores
             const badge = document.getElementById('active-filter-badge');
             const badgeName = document.getElementById('active-filter-name');
-            const resetBtn = document.getElementById('btn-reset-filter');
 
             if (areaId === 'all') {
                 badge.classList.add('hidden');
-                resetBtn.classList.add('hidden');
             } else {
                 badge.classList.remove('hidden');
-                resetBtn.classList.remove('hidden');
-                resetBtn.classList.add('inline-flex');
-
-                const activeCardTitle = document.querySelector(`.area-card[data-area-id="${areaId}"] h3`);
-                if (activeCardTitle) {
-                    badgeName.textContent = activeCardTitle.textContent;
-                }
+                const activeButton = Array.from(sidebarButtons)
+                    .find(button => button.getAttribute('data-sidebar-area') === areaId);
+                badgeName.textContent = activeButton?.querySelector('.sidebar-area-icon')?.nextElementSibling?.textContent.trim() || '';
             }
 
             applyFilters();
@@ -809,10 +673,8 @@
                     document.getElementById('modal-icono').value = service.icono || '⚡';
                     updateServiceLogoPreview();
                     document.getElementById('modal-desc').value = service.descripcion || '';
-                    document.getElementById('modal-access-type').value = service.accessType || 'internal';
-                    document.getElementById('modal-ip').value = service.accessType === 'direct'
-                        ? service.targetUrl || ''
-                        : service.internalIp || '';
+                    document.getElementById('modal-access-type').value = service.accessType || 'direct';
+                    document.getElementById('modal-direct-url').value = service.directUrl || '';
                     document.getElementById('modal-external-url').value = service.externalUrl || '';
                     document.getElementById('modal-group').value = service.requiredGroup || 'general';
                     document.getElementById('service-modal-title').textContent = 'Editar Servicio';
@@ -831,22 +693,17 @@
                 const accessType = document.getElementById('modal-access-type').value;
                 const isExternal = accessType === 'external';
                 const isDirect = accessType === 'direct';
-                const internalFields = document.getElementById('internal-address-fields');
+                const directFields = document.getElementById('direct-address-fields');
                 const externalFields = document.getElementById('external-address-fields');
-                const internalAddress = document.getElementById('modal-ip');
+                const directUrl = document.getElementById('modal-direct-url');
                 const externalUrl = document.getElementById('modal-external-url');
-                const internalAddressLabel = document.querySelector('label[for="modal-ip"]');
-                const internalAddressHelp = document.getElementById('internal-address-help');
+                const directAddressHelp = document.getElementById('direct-address-help');
 
-                internalFields.classList.toggle('hidden', isExternal);
+                directFields.classList.toggle('hidden', isExternal);
                 externalFields.classList.toggle('hidden', !isExternal);
-                internalAddress.required = !isExternal;
                 externalUrl.required = isExternal;
-                internalAddressLabel.textContent = isDirect ? 'URL de la interfaz (protocolo, IP y puerto)' : 'Dirección interna (IP/host y puerto)';
-                internalAddress.placeholder = isDirect ? 'https://192.0.2.10:11443' : 'ej. 192.0.2.10:8080';
-                internalAddressHelp.textContent = isDirect
-                    ? 'Se abrirá directamente en otra pestaña. El navegador debe tener acceso a la red y confiar en el certificado HTTPS del equipo.'
-                    : 'El servidor de la intranet debe poder alcanzar esta dirección. Se abrirá a través del gateway.';
+                directUrl.required = isDirect;
+                directAddressHelp.textContent = 'Se abrirá directamente en otra pestaña. El equipo del usuario debe tener acceso a esta dirección y confiar en su certificado HTTPS.';
             }
 
             document.getElementById('modal-icono').addEventListener('input', updateServiceLogoPreview);
@@ -872,7 +729,7 @@
                     icono: document.getElementById('modal-icono').value,
                     descripcion: document.getElementById('modal-desc').value,
                     accessType: document.getElementById('modal-access-type').value,
-                    internalIp: document.getElementById('modal-ip').value,
+                    directUrl: document.getElementById('modal-direct-url').value,
                     externalUrl: document.getElementById('modal-external-url').value,
                     requiredGroup: document.getElementById('modal-group').value
                 };

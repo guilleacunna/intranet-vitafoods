@@ -5,7 +5,6 @@ const fs = require('fs');
 const crypto = require('crypto');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const msal = require('@azure/msal-node');
 require('dotenv').config();
 
@@ -49,9 +48,6 @@ const generalLimiter = rateLimit({
 });
 app.use(generalLimiter);
 
-app.use(express.urlencoded({ extended: true, limit: '100kb' }));
-app.use(express.json({ limit: '100kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 
 // ==========================================
@@ -76,6 +72,15 @@ app.use(session({
         maxAge: 8 * 60 * 60 * 1000 // 8 horas
     }
 }));
+
+app.use((req, res, next) => {
+    res.locals.companyName = COMPANY_NAME;
+    next();
+});
+
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ==========================================
 // 3. MICROSOFT ENTRA ID (MSAL + MICROSOFT GRAPH)
@@ -191,7 +196,31 @@ const SERVICES_FILE_PATH = path.join(__dirname, 'data', 'services.json');
 function loadServices() {
     try {
         if (!fs.existsSync(SERVICES_FILE_PATH)) return [];
-        return JSON.parse(fs.readFileSync(SERVICES_FILE_PATH, 'utf8'));
+        const services = JSON.parse(fs.readFileSync(SERVICES_FILE_PATH, 'utf8'));
+        return services.map(service => {
+            const migratedService = { ...service };
+            if (migratedService.accessType === 'internal') {
+                migratedService.accessType = 'direct';
+            }
+
+            if (migratedService.accessType === 'direct') {
+                const legacyAddress = migratedService.directUrl
+                    || migratedService.targetUrl
+                    || migratedService.internalIp
+                    || '';
+                const addressWithProtocol = /^[a-z][a-z\d+.-]*:\/\//i.test(legacyAddress)
+                    ? legacyAddress
+                    : `http://${legacyAddress}`;
+                migratedService.directUrl = normalizeDirectAddress(addressWithProtocol) || '';
+            } else {
+                migratedService.directUrl = '';
+            }
+
+            delete migratedService.targetUrl;
+            delete migratedService.internalIp;
+            delete migratedService.url;
+            return migratedService;
+        });
     } catch (err) {
         console.error('Error al leer services.json:', err);
         return [];
@@ -215,7 +244,7 @@ const BASE_AREAS = [
     { id: 'ti',             nombre: 'Tecnologías de la Información (TI)', icono: '💻', descripcion: 'Herramientas técnicas, Jira, accesos y servidores de infraestructura' }
 ];
 
-function normalizeInternalAddress(value) {
+function normalizeDirectAddress(value) {
     const address = String(value || '').trim();
     if (!address) return null;
 
@@ -226,7 +255,7 @@ function normalizeInternalAddress(value) {
             || url.pathname !== '/' || url.search || url.hash) {
             return null;
         }
-        return { address: url.host, targetUrl: url.origin };
+        return url.origin;
     } catch {
         return null;
     }
@@ -249,11 +278,6 @@ function normalizeExternalUrl(value) {
 const COMPANY_DOMAIN = process.env.COMPANY_DOMAIN || '@example.com';
 const COMPANY_NAME   = (process.env.COMPANY_NAME || 'VITAFOODS').replace(/\s+SPA$/i, '').trim();
 
-app.use((req, res, next) => {
-    res.locals.companyName = COMPANY_NAME;
-    next();
-});
-
 const requireAuth = (req, res, next) => {
     if (!req.session?.user) return res.redirect('/');
     next();
@@ -267,103 +291,6 @@ const requireAdmin = (req, res, next) => {
     }
     next();
 };
-
-const proxyMiddlewareCache = new Map();
-
-function proxyServiceRequest(req, res, next, service, stripPrefix = '') {
-    const user = req.session?.user;
-    if (!user) return res.redirect('/');
-
-    if (service.requiredGroup === 'ti' && !user.isTI && !user.isAdmin) {
-        return res.status(403).render('proxy-gateway', {
-            status: 'forbidden', user, service,
-            message: `Acceso denegado: Este recurso requiere el grupo '${ENTRA_TI_GROUP}' en Microsoft Entra ID.`
-        });
-    }
-
-    if (service.requiredGroup === 'admin' && !user.isAdmin) {
-        return res.status(403).render('proxy-gateway', {
-            status: 'forbidden', user, service,
-            message: `Acceso restringido: Solo para el grupo '${ENTRA_ADMIN_GROUP}'.`
-        });
-    }
-
-    if (service.accessType !== 'internal') {
-        return res.status(400).render('proxy-gateway', {
-            status: 'not_found', user, service,
-            message: 'Este servicio no está configurado para utilizar el proxy interno.'
-        });
-    }
-
-    const target = service.targetUrl
-        || process.env[`PROXY_TARGET_${service.id.toUpperCase()}`]
-        || (service.internalIp ? `http://${service.internalIp}` : '');
-
-    if (!target) {
-        return res.render('proxy-gateway', {
-            status: 'demo_active', user, service,
-            message: 'Configura PROXY_TARGET_* en .env para conectar al recurso real.'
-        });
-    }
-
-    const cacheKey = `${service.id}:${target}:${stripPrefix}`;
-    let proxyMiddleware = proxyMiddlewareCache.get(cacheKey);
-    if (!proxyMiddleware) {
-        const proxyOptions = {
-            target,
-            changeOrigin: true,
-            secure: false,
-            on: {
-                proxyReq(proxyReq, request) {
-                    proxyReq.setHeader('X-Authenticated-User', request.session.user.email);
-                    proxyReq.setHeader('X-User-Role', request.session.user.role);
-                    proxyReq.setHeader('X-Entra-Groups', (request.session.user.groups || []).join(';'));
-                    proxyReq.setHeader('X-Intranet-Gateway', 'VTF-Secure-Reverse-Proxy');
-                    proxyReq.setHeader('X-Forwarded-Host', request.get('host'));
-                },
-                error(err, request, response) {
-                    console.error(`[PROXY ERROR] ${service.nombre}:`, err.message);
-                    if (response.headersSent) return response.end();
-                    response.status(502).render('proxy-gateway', {
-                        status: 'connection_error', user: request.session.user, service,
-                        message: `No fue posible conectar con el servidor interno (${service.internalIp || service.id}).`
-                    });
-                }
-            }
-        };
-
-        if (stripPrefix) proxyOptions.pathRewrite = { [`^${stripPrefix}`]: '' };
-        proxyMiddleware = createProxyMiddleware(proxyOptions);
-        proxyMiddlewareCache.set(cacheKey, proxyMiddleware);
-    }
-
-    return proxyMiddleware(req, res, next);
-}
-
-app.use((req, res, next) => {
-    const referer = req.get('referer');
-    if (!referer) return next();
-
-    let refererUrl;
-    try {
-        refererUrl = new URL(referer);
-    } catch {
-        return next();
-    }
-
-    const requestOrigin = `${req.protocol}://${req.get('host')}`;
-    if (refererUrl.origin !== requestOrigin) return next();
-
-    const match = refererUrl.pathname.match(/^\/proxy\/([^/]+)(?:\/|$)/i);
-    if (!match) return next();
-
-    const key = match[1].toLowerCase();
-    const service = loadServices().find(item => item.id.toLowerCase() === key);
-    if (!service || service.accessType !== 'internal') return next();
-    if (!req.session?.user) return res.redirect('/?error=session_expired');
-
-    return proxyServiceRequest(req, res, next, service);
-});
 
 // ==========================================
 // 6. RUTAS DE AUTENTICACIÓN
@@ -687,7 +614,7 @@ app.get('/api/notifications', requireAuth, async (req, res) => {
 // ==========================================
 
 app.post('/api/services', requireAuth, requireAdmin, (req, res) => {
-    const { nombre, areaId, icono, descripcion, accessType, internalIp, externalUrl, requiredGroup } = req.body;
+    const { nombre, areaId, icono, descripcion, accessType, directUrl, externalUrl, requiredGroup } = req.body;
     const cleanName = String(nombre || '').trim();
     if (!cleanName || !areaId || !descripcion) {
         return res.status(400).json({ error: 'Faltan campos obligatorios.' });
@@ -697,8 +624,8 @@ app.post('/api/services', requireAuth, requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Selecciona un área válida.' });
     }
 
-    const serviceType = accessType || 'internal';
-    if (!['internal', 'direct', 'external'].includes(serviceType)) {
+    const serviceType = accessType || 'direct';
+    if (!['direct', 'external'].includes(serviceType)) {
         return res.status(400).json({ error: 'Selecciona un tipo de servicio válido.' });
     }
 
@@ -706,17 +633,10 @@ app.post('/api/services', requireAuth, requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Selecciona un permiso válido.' });
     }
 
-    const normalizedAddress = serviceType !== 'external' ? normalizeInternalAddress(internalIp) : null;
+    const normalizedDirectUrl = serviceType === 'direct' ? normalizeDirectAddress(directUrl) : null;
     const normalizedExternalUrl = serviceType === 'external' ? normalizeExternalUrl(externalUrl) : null;
-    if (serviceType !== 'external' && !normalizedAddress) {
-        return res.status(400).json({
-            error: serviceType === 'direct'
-                ? 'Ingresa una URL interna válida con protocolo y puerto, por ejemplo https://192.0.2.10:11443.'
-                : 'Ingresa una dirección interna válida, por ejemplo 192.0.2.10:8080.'
-        });
-    }
-    if (serviceType === 'direct' && !/^https?:\/\//i.test(String(internalIp || '').trim())) {
-        return res.status(400).json({ error: 'Para abrir una IP directamente, indica el protocolo y puerto, por ejemplo https://192.0.2.10:11443.' });
+    if (serviceType === 'direct' && (!/^https?:\/\//i.test(String(directUrl || '').trim()) || !normalizedDirectUrl)) {
+        return res.status(400).json({ error: 'Ingresa una URL interna válida con protocolo, IP/host y puerto, por ejemplo https://192.0.2.10:11443.' });
     }
     if (serviceType === 'external' && !normalizedExternalUrl) {
         return res.status(400).json({ error: 'Ingresa una URL externa válida que comience con http:// o https://.' });
@@ -741,10 +661,8 @@ app.post('/api/services', requireAuth, requireAdmin, (req, res) => {
         areaNombre: area ? area.nombre : areaId,
         icono: icono ? String(icono).trim() : '⚡',
         accessType: serviceType,
-        url: serviceType === 'internal' ? `/proxy/${cleanId}` : `/launch/${cleanId}`,
         externalUrl: serviceType === 'external' ? normalizedExternalUrl : '',
-        targetUrl: normalizedAddress?.targetUrl || '',
-        internalIp: normalizedAddress?.address || '',
+        directUrl: normalizedDirectUrl || '',
         descripcion: String(descripcion).trim(),
         requiredGroup: requiredGroup || 'general'
     };
@@ -763,7 +681,7 @@ app.get('/api/services/:id', requireAuth, requireAdmin, (req, res) => {
 });
 
 app.put('/api/services/:id', requireAuth, requireAdmin, (req, res) => {
-    const { nombre, areaId, icono, descripcion, accessType, internalIp, externalUrl, requiredGroup } = req.body;
+    const { nombre, areaId, icono, descripcion, accessType, directUrl, externalUrl, requiredGroup } = req.body;
     const services = loadServices();
     const i = services.findIndex(s => s.id === req.params.id);
     if (i === -1) return res.status(404).json({ error: 'Servicio no encontrado.' });
@@ -776,24 +694,17 @@ app.put('/api/services/:id', requireAuth, requireAdmin, (req, res) => {
     if (!BASE_AREAS.some(area => area.id === areaId)) {
         return res.status(400).json({ error: 'Selecciona un área válida.' });
     }
-    if (!['internal', 'direct', 'external'].includes(accessType)) {
+    if (!['direct', 'external'].includes(accessType)) {
         return res.status(400).json({ error: 'Selecciona un tipo de servicio válido.' });
     }
     if (!['general', 'ti', 'admin'].includes(requiredGroup)) {
         return res.status(400).json({ error: 'Selecciona un permiso válido.' });
     }
 
-    const normalizedAddress = accessType !== 'external' ? normalizeInternalAddress(internalIp) : null;
+    const normalizedDirectUrl = accessType === 'direct' ? normalizeDirectAddress(directUrl) : null;
     const normalizedExternalUrl = accessType === 'external' ? normalizeExternalUrl(externalUrl) : null;
-    if (accessType !== 'external' && !normalizedAddress) {
-        return res.status(400).json({
-            error: accessType === 'direct'
-                ? 'Ingresa una URL interna válida con protocolo y puerto, por ejemplo https://192.0.2.10:11443.'
-                : 'Ingresa una dirección interna válida, por ejemplo 192.0.2.10:8080.'
-        });
-    }
-    if (accessType === 'direct' && !/^https?:\/\//i.test(String(internalIp || '').trim())) {
-        return res.status(400).json({ error: 'Para abrir una IP directamente, indica el protocolo y puerto, por ejemplo https://192.0.2.10:11443.' });
+    if (accessType === 'direct' && (!/^https?:\/\//i.test(String(directUrl || '').trim()) || !normalizedDirectUrl)) {
+        return res.status(400).json({ error: 'Ingresa una URL interna válida con protocolo, IP/host y puerto, por ejemplo https://192.0.2.10:11443.' });
     }
     if (accessType === 'external' && !normalizedExternalUrl) {
         return res.status(400).json({ error: 'Ingresa una URL externa válida que comience con http:// o https://.' });
@@ -808,10 +719,8 @@ app.put('/api/services/:id', requireAuth, requireAdmin, (req, res) => {
         icono:         icono         ? String(icono).trim()         : services[i].icono,
         descripcion: cleanDescription,
         accessType,
-        url: accessType === 'internal' ? `/proxy/${services[i].id}` : `/launch/${services[i].id}`,
         externalUrl: accessType === 'external' ? normalizedExternalUrl : '',
-        internalIp: normalizedAddress?.address || '',
-        targetUrl: normalizedAddress?.targetUrl || '',
+        directUrl: normalizedDirectUrl || '',
         requiredGroup
     };
 
@@ -838,7 +747,7 @@ app.get('/launch/:service', requireAuth, (req, res) => {
     const user = req.session.user;
 
     if (!service || !['direct', 'external'].includes(service.accessType)) {
-        return res.status(404).render('proxy-gateway', {
+        return res.status(404).render('service-error', {
             status: 'not_found',
             user,
             service: service || { nombre: req.params.service, id: req.params.service },
@@ -847,14 +756,14 @@ app.get('/launch/:service', requireAuth, (req, res) => {
     }
 
     if (service.requiredGroup === 'ti' && !user.isTI && !user.isAdmin) {
-        return res.status(403).render('proxy-gateway', {
+        return res.status(403).render('service-error', {
             status: 'forbidden', user, service,
             message: `Acceso denegado: Este recurso requiere el grupo '${ENTRA_TI_GROUP}' en Microsoft Entra ID.`
         });
     }
 
     if (service.requiredGroup === 'admin' && !user.isAdmin) {
-        return res.status(403).render('proxy-gateway', {
+        return res.status(403).render('service-error', {
             status: 'forbidden', user, service,
             message: `Acceso restringido: Solo para el grupo '${ENTRA_ADMIN_GROUP}'.`
         });
@@ -862,11 +771,11 @@ app.get('/launch/:service', requireAuth, (req, res) => {
 
     const destination = service.accessType === 'external'
         ? normalizeExternalUrl(service.externalUrl)
-        : normalizeInternalAddress(service.targetUrl || service.internalIp)?.targetUrl;
+        : normalizeDirectAddress(service.directUrl);
 
     if (!destination) {
         console.error(`[LAUNCH] Destino inválido para el servicio ${service.id}.`);
-        return res.status(500).render('proxy-gateway', {
+        return res.status(500).render('service-error', {
             status: 'connection_error', user, service,
             message: 'El destino de este servicio no tiene una dirección válida. Contacta al administrador.'
         });
@@ -876,31 +785,11 @@ app.get('/launch/:service', requireAuth, (req, res) => {
 });
 
 // ==========================================
-// 9. REVERSE PROXY HACIA RECURSOS INTERNOS
-// ==========================================
-
-app.all(['/proxy/:service', '/proxy/:service/*'], requireAuth, (req, res, next) => {
-    const key      = String(req.params.service).toLowerCase();
-    const service  = loadServices().find(s => s.id.toLowerCase() === key);
-    const user     = req.session.user;
-
-    if (!service) {
-        return res.status(404).render('proxy-gateway', {
-            status: 'not_found', user,
-            service: { nombre: req.params.service, id: req.params.service },
-            message: 'El recurso solicitado no existe en el catálogo seguro de la intranet.'
-        });
-    }
-
-    return proxyServiceRequest(req, res, next, service, `/proxy/${key}`);
-});
-
-// ==========================================
 // 10. MANEJADORES DE ERROR
 // ==========================================
 
 app.use((req, res) => {
-    res.status(404).render('proxy-gateway', {
+    res.status(404).render('service-error', {
         status: 'not_found',
         user: req.session?.user || null,
         service: { nombre: 'Página no encontrada', id: '404' },

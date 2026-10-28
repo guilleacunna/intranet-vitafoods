@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= service.nombre %> | <%= companyName %></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="brand-theme bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800">
+    <header class="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <img src="/img/logo-vtf.png" alt="<%= companyName %>" class="gateway-brand-logo">
+            <span class="text-lg font-bold text-slate-800"><%= companyName %></span>
+        </div>
+        <a href="/dashboard" class="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-red-600 transition-colors">
+            &larr; Volver al Dashboard
+        </a>
+    </header>
+
+    <main class="flex-1 max-w-2xl w-full mx-auto p-6 md:p-10 flex flex-col justify-center">
+        <section class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            <div class="<%= status === 'forbidden' ? 'bg-red-600' : 'bg-amber-600' %> p-6 text-white">
+                <h1 class="text-2xl font-bold"><%= status === 'forbidden' ? 'Acceso denegado' : 'No fue posible abrir el servicio' %></h1>
+                <p class="mt-2 text-sm"><%= message %></p>
+            </div>
+            <div class="p-8 space-y-4 text-sm text-slate-600">
+                <p><strong>Servicio:</strong> <%= service.nombre %></p>
+                <% if (user && status === 'forbidden') { %>
+                    <p><strong>Cuenta:</strong> <%= user.email %></p>
+                    <p><strong>Rol:</strong> <%= user.roleLabel || user.role %></p>
+                <% } %>
+                <a href="/dashboard" class="inline-flex bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-lg font-semibold transition-colors">
+                    Volver al Dashboard
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="text-center py-4 text-xs text-slate-400 border-t border-slate-200 bg-white">
+        <%= companyName %> &middot; Intranet corporativa
+    </footer>
+</body>
+</html>

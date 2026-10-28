@@ -3,7 +3,7 @@
 ## Requisitos
 
 - Docker Desktop instalado y en ejecución.
-- El archivo local `.env`, con la configuración de Entra ID y las variables `PROXY_TARGET_*`.
+- El archivo local `.env`, con la configuración de Entra ID.
 - El catálogo `data/services.json` si se quiere mostrar el catálogo local existente.
 
 `.env` y los archivos JSON de `data` no se incluyen en la imagen ni en Git. Compose monta `data` para conservar los cambios del catálogo en el equipo anfitrión.
@@ -30,4 +30,4 @@ Compose publica el puerto 3000 del contenedor solo en `127.0.0.1` del equipo y c
 
 ## Presentación desde otros equipos
 
-La configuración anterior está pensada para probar desde el mismo equipo. No expongas directamente el puerto a Internet. Para acceder desde otros equipos y mantener Entra ID, se necesita un hostname accesible para los asistentes, HTTPS con un certificado confiable y registrar en Entra la URI de callback exacta de ese hostname. También debe confirmarse que el host Docker puede alcanzar los destinos internos configurados en `PROXY_TARGET_*`.
+Los servicios de IP interna directa se abren en el navegador del usuario, fuera del contenedor. Cada equipo debe poder acceder a esas direcciones y confiar en sus certificados HTTPS. No expongas directamente el puerto de la intranet a Internet. Para acceder desde otros equipos y mantener Entra ID, se necesita un hostname accesible para los asistentes, HTTPS con un certificado confiable y registrar en Entra la URI de callback exacta de ese hostname.

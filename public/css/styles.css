@@ -593,72 +593,6 @@
     letter-spacing: -0.02em;
 }
 
-.dashboard-main .area-card {
-    min-height: 190px;
-    padding: 19px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--surface);
-    box-shadow: var(--shadow-card);
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
-}
-
-.area-card-icon {
-    display: inline-grid;
-    width: 68px;
-    height: 68px;
-    place-items: center;
-    padding: 9px;
-    font-size: 42px;
-    line-height: 1;
-    transition: transform 180ms ease;
-}
-
-.area-card:hover .area-card-icon {
-    transform: scale(1.08);
-}
-
-.dashboard-main .area-card[data-area-id="all"] {
-    background: #fff;
-}
-
-.dashboard-main .area-card[data-area-id="administracion"],
-.dashboard-main .area-card[data-area-id="logistica"],
-.dashboard-main .area-card[data-area-id="ti"] {
-    background: #fff;
-}
-
-.dashboard-main .area-card.border-red-600 {
-    border: 2px solid var(--brand-magenta);
-    box-shadow: 0 5px 18px rgb(228 27 117 / 10%);
-}
-
-.dashboard-main .area-card:hover {
-    transform: translateY(-2px);
-    border-color: #c8b9df;
-    box-shadow: 0 9px 22px rgb(26 22 38 / 8%);
-}
-
-.dashboard-main .area-card .badge-count {
-    background: #f0edf8;
-    color: var(--brand-purple);
-    font-weight: 600;
-}
-
-.dashboard-main .area-card[data-area-id="all"] .badge-count,
-.dashboard-main .area-card.border-red-600 .badge-count {
-    background: #fde5ef;
-    color: #b91660;
-}
-
-.dashboard-main .area-card .status-indicator {
-    color: var(--text-secondary);
-}
-
-.dashboard-main .area-card.border-red-600 .status-indicator {
-    color: #b91660;
-}
-
 .dashboard-main .bg-white.p-4.rounded-2xl,
 .dashboard-main #no-services-message {
     border-color: var(--border);
@@ -741,10 +675,6 @@
 
 .service-card.is-hidden {
     display: none !important;
-}
-
-.area-card {
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
 .service-modal {
